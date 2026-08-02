@@ -109,6 +109,34 @@ label.fld.filled span::after{content:" ✓ 読取";color:var(--accent);font-size
   display:inline-block;font-size:10.5px;background:#f3f0ff;color:#5f3dc4;
   border-radius:5px;padding:1px 6px;margin-left:6px;vertical-align:middle;font-weight:600;
 }
+/* サムネイル */
+.thumbs{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.thumb{position:relative;width:88px;height:64px;border-radius:8px;overflow:hidden;box-shadow:var(--shadow);background:#e9ecf3}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.thumb .rm{
+  position:absolute;top:2px;right:2px;width:20px;height:20px;border:none;border-radius:50%;
+  background:rgba(20,26,44,.72);color:#fff;font-size:13px;line-height:1;cursor:pointer;padding:0;
+}
+.thumb .idx{
+  position:absolute;bottom:2px;left:3px;font-size:10px;color:#fff;
+  background:rgba(20,26,44,.6);border-radius:4px;padding:0 4px;
+}
+/* 一括結果 */
+.batch-item{
+  display:flex;gap:10px;align-items:flex-start;
+  border:1.5px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:9px;background:#fff;
+}
+.batch-item.dup{background:#fffaf0;border-color:#ffd8a8}
+.batch-item input[type=checkbox]{width:20px;height:20px;margin-top:2px;flex:none;accent-color:var(--primary)}
+.batch-item .bi-body{flex:1;min-width:0;display:block}
+.batch-item .bi-name{display:block;font-weight:700;font-size:15px;line-height:1.35}
+.batch-item .bi-sub{display:block;font-size:12.5px;color:var(--text-sub);margin-top:2px;word-break:break-all;line-height:1.45}
+.batch-item .bi-warn{display:block;font-size:11.5px;color:#e8590c;margin-top:4px}
+.batch-item .bi-edit{
+  border:none;background:var(--primary-light);color:var(--primary-dark);
+  border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;flex:none;font-family:inherit;
+}
+.batch-tools{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .muted{color:var(--text-sub);font-size:12.5px}
 .hidden{display:none!important}
@@ -220,14 +248,17 @@ pre.code-block{
         <h2 class="sec">📷 名刺を読み取る</h2>
         <div class="scan-btns">
           <button class="btn btn-primary" id="cameraBtn"><span class="big-ico">📸</span>カメラで撮影</button>
-          <button class="btn btn-outline" id="galleryBtn"><span class="big-ico">🖼️</span>画像を選択</button>
+          <button class="btn btn-outline" id="galleryBtn"><span class="big-ico">🖼️</span>画像を選ぶ<br><span style="font-size:11px;font-weight:400">複数まとめてOK</span></button>
         </div>
+        <button class="btn btn-outline btn-block" id="videoBtn" style="margin-top:8px">🎥 動画から読み取る(まとめて撮影)</button>
         <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
-        <input type="file" id="galleryInput" accept="image/*" class="hidden">
-        <button class="btn btn-ghost btn-block" id="manualBtn" style="margin-top:4px">✏️ 手入力で追加する</button>
+        <input type="file" id="galleryInput" accept="image/*" multiple class="hidden">
+        <input type="file" id="videoInput" accept="video/*" class="hidden">
+        <button class="btn btn-ghost btn-block" id="manualBtn" style="margin-top:8px">✏️ 手入力で追加する</button>
 
         <div id="previewWrap" class="hidden">
-          <img id="previewImg" alt="名刺プレビュー">
+          <div class="thumbs" id="thumbs"></div>
+          <p class="muted" id="pickInfo" style="margin-top:8px;text-align:center"></p>
           <button class="btn btn-ai btn-block" id="aiBtn" style="margin-top:10px">🤖 AIで読み取る(高精度)</button>
           <button class="btn btn-outline btn-block" id="ocrBtn" style="margin-top:8px">🔍 通常OCRで読み取る(オフライン可)</button>
           <p class="muted" id="aiHint" style="margin-top:6px;text-align:center"></p>
@@ -242,6 +273,20 @@ pre.code-block{
           <summary>読み取った元テキストを見る</summary>
           <pre id="rawText"></pre>
         </details>
+      </div>
+
+      <div class="card-box hidden" id="batchBox">
+        <h2 class="sec">📋 読み取り結果</h2>
+        <div class="extract-summary" id="batchSummary"></div>
+        <div class="batch-tools">
+          <button class="btn btn-ghost btn-sm" id="batchAllBtn">すべて選択</button>
+          <button class="btn btn-ghost btn-sm" id="batchNoneBtn">すべて解除</button>
+        </div>
+        <div id="batchList"></div>
+        <div class="form-actions">
+          <button class="btn btn-ghost" id="batchCancelBtn">キャンセル</button>
+          <button class="btn btn-primary" id="batchSaveBtn">💾 保存する</button>
+        </div>
       </div>
 
       <div class="card-box hidden" id="formBox">
@@ -425,7 +470,10 @@ const LS_FBCLEARED = "meishi_fb_cleared_v1";
 /* ---------- state ---------- */
 let cards = [];            // {id,name,kana,company,dept,title,phone,mobile,fax,email,url,postal,address,memo,createdAt,updatedAt}
 let fb = { app:null, db:null, auth:null, user:null, unsub:null, connected:false, authWatch:false };
-let currentImageBlob = null;
+let currentImageBlob = null;    // 単数処理の互換用(先頭の画像)
+let pickedImages = [];          // 読み取り対象の画像(複数可)
+let batchResults = [];          // 一括読み取りの結果
+let batchEditIndex = -1;        // 一括結果を編集中のindex
 
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
@@ -636,11 +684,35 @@ ${Object.entries(AI_FIELD_DESC).map(([k,v])=>`- ${k}: ${v}`).join("\n")}
 - 会社のロゴに含まれる文字も会社名の判断材料にすること。
 - JSON以外の文章は一切出力しないこと。`;
 
-const AI_SCHEMA = {
+const AI_CARD_SCHEMA = {
   type:"object",
   properties: Object.fromEntries(Object.keys(AI_FIELD_DESC).map(k=>[k,{type:"string"}])),
   required: Object.keys(AI_FIELD_DESC)
 };
+const AI_SCHEMA = AI_CARD_SCHEMA;
+/* 複数枚・動画フレーム用: 名刺の配列で返させる */
+const AI_MULTI_SCHEMA = {
+  type:"object",
+  properties:{ cards:{ type:"array", items: AI_CARD_SCHEMA } },
+  required:["cards"]
+};
+const AI_MULTI_PROMPT = `あなたは名刺情報を正確に読み取る専門家です。渡された画像(複数枚の写真、または動画から切り出したコマ)に写っている名刺をすべて読み取り、JSONで返してください。
+
+出力形式: { "cards": [ 名刺1, 名刺2, ... ] }
+
+各名刺の項目:
+${Object.entries(AI_FIELD_DESC).map(([k,v])=>`- ${k}: ${v}`).join("\n")}
+
+重要なルール:
+- 同じ名刺が複数の画像やコマに写っている場合は、1件にまとめること(重複させない)。最も鮮明に写っているものを採用する。
+- 1枚の画像に複数の名刺が写っている場合は、それぞれ別の件として抽出すること。
+- 名刺の表と裏が写っている場合は、同じ人物のものとして1件にまとめること。
+- 名刺に書かれていない項目は必ず空文字 "" にする。推測で埋めないこと(ただし kana と tags と memo は推測可)。
+- 電話番号とFAXは必ず区別する。「TEL」「FAX」の表記や配置をよく見ること。
+- 携帯番号(070/080/090で始まる)は mobile に入れ、固定電話は phone に入れる。
+- ピンボケなどで判読できないコマは無視すること。
+- 名刺が1枚も写っていない場合は { "cards": [] } を返すこと。
+- JSON以外の文章は一切出力しないこと。`;
 
 function getAiKey(){
   const saved = (store.get(LS_AIKEY)||"").trim();
@@ -670,15 +742,20 @@ function blobToBase64(blob){
 }
 
 /* Geminiは新旧2系統のリクエスト形式があるため、順に試して通った方を使う */
-function buildGeminiRequests(model, b64, mime, prompt){
+/* images: [{b64, mime}, ...] 複数枚を1リクエストにまとめられる */
+function buildGeminiRequests(model, images, prompt, schema){
   const base = "https://generativelanguage.googleapis.com/v1beta";
+  const sc = schema || AI_CARD_SCHEMA;
   return [
     {
       label: "generateContent",
       url: `${base}/models/${encodeURIComponent(model)}:generateContent`,
       body: {
-        contents: [{ role:"user", parts:[ {text:prompt}, {inline_data:{mime_type:mime, data:b64}} ] }],
-        generationConfig: { responseMimeType:"application/json", responseSchema:AI_SCHEMA, temperature:0 }
+        contents: [{ role:"user", parts:[
+          {text:prompt},
+          ...images.map(im=>({ inline_data:{ mime_type:im.mime, data:im.b64 } }))
+        ] }],
+        generationConfig: { responseMimeType:"application/json", responseSchema:sc, temperature:0 }
       }
     },
     {
@@ -686,8 +763,11 @@ function buildGeminiRequests(model, b64, mime, prompt){
       url: `${base}/interactions`,
       body: {
         model: model,
-        input: [{ role:"user", content:[ {type:"text", text:prompt}, {type:"image", data:b64, mime_type:mime} ] }],
-        response_format: { type:"text", mime_type:"application/json", schema:AI_SCHEMA }
+        input: [{ role:"user", content:[
+          {type:"text", text:prompt},
+          ...images.map(im=>({ type:"image", data:im.b64, mime_type:im.mime }))
+        ] }],
+        response_format: { type:"text", mime_type:"application/json", schema:sc }
       }
     }
   ];
@@ -723,11 +803,12 @@ function pickGeminiText(json){
   return "";
 }
 
-async function callGemini(b64, mime, prompt, onProgress){
+async function callGemini(images, prompt, onProgress, schema){
   const key = getAiKey();
   if(!key) throw new Error("NO_KEY");
   const model = getAiModel();
-  const attempts = buildGeminiRequests(model, b64, mime, prompt);
+  const list = Array.isArray(images) ? images : [images];
+  const attempts = buildGeminiRequests(model, list, prompt, schema);
   let lastErr = "";
   for(const at of attempts){
     if(onProgress) onProgress(at.label);
@@ -763,37 +844,261 @@ async function callGemini(b64, mime, prompt, onProgress){
   throw new Error(lastErr || "AI読み取りに失敗しました");
 }
 
+/* =====================================================
+   動画からフレームを抽出
+   - 一定間隔でコマを取り出す
+   - ブレているコマを除外(ラプラシアン分散)
+   - 似ているコマをまとめる(dHash)
+===================================================== */
+function frameStats(canvas){
+  const w = 32, h = 32;
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  const ctx = c.getContext("2d");
+  ctx.drawImage(canvas, 0, 0, w, h);
+  const d = ctx.getImageData(0,0,w,h).data;
+  const gray = new Float64Array(w*h);
+  for(let i=0;i<w*h;i++){
+    gray[i] = d[i*4]*0.299 + d[i*4+1]*0.587 + d[i*4+2]*0.114;
+  }
+  // ブレ具合: ラプラシアンの分散(大きいほどくっきり)
+  let sum = 0, sum2 = 0, n = 0;
+  for(let y=1;y<h-1;y++){
+    for(let x=1;x<w-1;x++){
+      const i = y*w+x;
+      const lap = 4*gray[i] - gray[i-1] - gray[i+1] - gray[i-w] - gray[i+w];
+      sum += lap; sum2 += lap*lap; n++;
+    }
+  }
+  const mean = sum/n;
+  const sharpness = sum2/n - mean*mean;
+  // dHash: 横方向の明暗変化をビット列で表す(細かい違いも拾えるよう高めの解像度)
+  const hw = 17, hh = 16;
+  const c2 = document.createElement("canvas");
+  c2.width = hw; c2.height = hh;
+  c2.getContext("2d").drawImage(canvas, 0, 0, hw, hh);
+  const d2 = c2.getContext("2d").getImageData(0,0,hw,hh).data;
+  const bits = [];
+  for(let y=0;y<hh;y++){
+    for(let x=0;x<hw-1;x++){
+      const a = (y*hw+x)*4, b = (y*hw+x+1)*4;
+      const ga = d2[a]*0.299 + d2[a+1]*0.587 + d2[a+2]*0.114;
+      const gb = d2[b]*0.299 + d2[b+1]*0.587 + d2[b+2]*0.114;
+      bits.push(ga > gb ? 1 : 0);
+    }
+  }
+  // 平均色(構図が似ていても紙の色が違う別の名刺を見分けるため)
+  let r=0,g=0,bl=0;
+  for(let i=0;i<w*h;i++){ r+=d[i*4]; g+=d[i*4+1]; bl+=d[i*4+2]; }
+  const n2 = w*h;
+  return { sharpness, hash: bits, color:[r/n2, g/n2, bl/n2] };
+}
+function hamming(a, b){
+  let d = 0;
+  for(let i=0;i<a.length;i++) if(a[i] !== b[i]) d++;
+  return d;
+}
+function colorDist(a, b){
+  if(!a || !b) return 999;
+  return Math.max(Math.abs(a[0]-b[0]), Math.abs(a[1]-b[1]), Math.abs(a[2]-b[2]));
+}
+
+async function extractVideoFrames(file, opts, onProgress){
+  // similarityRatio: ハッシュ全体のうち何割違えば「別のコマ」とみなすか(小さいほど別物と判定しやすい)
+  const o = Object.assign({ maxFrames:8, interval:0.4, similarityRatio:0.012, colorTolerance:6, maxWidth:1280 }, opts||{});
+  const video = document.createElement("video");
+  video.preload = "auto";
+  video.muted = true;
+  video.playsInline = true;
+  video.setAttribute("playsinline","");
+  video.setAttribute("muted","");
+  // iOSなどではDOMに入っていないとシークできないことがあるため、見えない状態で一時的に追加
+  video.style.cssText = "position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:0.01;pointer-events:none";
+  document.body.appendChild(video);
+  const url = URL.createObjectURL(file);
+  video.src = url;
+
+  const cleanup = ()=>{
+    try{ URL.revokeObjectURL(url); }catch(e){}
+    try{ video.removeAttribute("src"); video.load(); }catch(e){}
+    if(video.parentNode) video.parentNode.removeChild(video);
+  };
+
+  try{
+    await new Promise((res, rej)=>{
+      let done = false;
+      const finish = fn => { if(!done){ done = true; fn(); } };
+      const ok = ()=>finish(res);
+      video.onloadedmetadata = ok;
+      video.onloadeddata = ok;
+      video.onerror = ()=>finish(()=>{
+        const code = video.error && video.error.code;
+        rej(new Error(code === 4
+          ? "この形式の動画にブラウザが対応していません。別の形式で撮影・保存してお試しください"
+          : "動画を読み込めませんでした"));
+      });
+      setTimeout(()=>finish(res), 10000);
+    });
+  }catch(e){ cleanup(); throw e; }
+
+  const dur = isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
+  if(!dur){ cleanup(); throw new Error("動画の長さを取得できませんでした(対応していない形式の可能性があります)"); }
+
+  // サンプリング位置(最大40点)
+  let times = [];
+  const step = Math.max(o.interval, dur/40);
+  for(let t = Math.min(0.15, dur*0.05); t < dur; t += step) times.push(t);
+  if(times.length === 0) times = [dur/2];
+
+  const vw = video.videoWidth || 640, vh = video.videoHeight || 480;
+  const scale = Math.min(1, o.maxWidth/Math.max(vw,vh));
+  const cw = Math.max(2, Math.round(vw*scale)), ch = Math.max(2, Math.round(vh*scale));
+  const cv = document.createElement("canvas");
+  cv.width = cw; cv.height = ch;
+  const ctx = cv.getContext("2d");
+
+  const cand = [];
+  for(let i=0;i<times.length;i++){
+    if(onProgress) onProgress(i+1, times.length);
+    const okSeek = await new Promise(res=>{
+      let settled = false;
+      const fin = ()=>{ if(!settled){ settled = true; res(true); } };
+      video.onseeked = fin;
+      try{ video.currentTime = times[i]; }catch(e){ res(false); return; }
+      setTimeout(()=>{ if(!settled){ settled = true; res(true); } }, 1200);
+    });
+    if(!okSeek) continue;
+    try{ ctx.drawImage(video, 0, 0, cw, ch); }catch(e){ continue; }
+    let st;
+    try{ st = frameStats(cv); }catch(e){ continue; }
+    const dataUrl = cv.toDataURL("image/jpeg", 0.85);
+    cand.push({ time: times[i], sharpness: st.sharpness, hash: st.hash, color: st.color, dataUrl });
+  }
+  cleanup();
+  if(cand.length === 0) throw new Error("動画からコマを取り出せませんでした");
+
+  // ブレすぎのコマを除外(全体の中央値の40%未満は捨てる)
+  const sorted = cand.map(c=>c.sharpness).sort((a,b)=>a-b);
+  const median = sorted[Math.floor(sorted.length/2)] || 0;
+  let usable = cand.filter(c=>c.sharpness >= median*0.4);
+  if(usable.length === 0) usable = cand;
+
+  // 動画の全体をまんべんなくカバーするため、時間を等分して各区間の最も鮮明なコマを採る。
+  // (名刺は見た目が似ているので、画像の類似度だけで絞ると別々の名刺を取りこぼす)
+  const buckets = Math.min(o.maxFrames, usable.length);
+  const picksByTime = [];
+  for(let i=0;i<buckets;i++){
+    const from = dur*i/buckets, to = dur*(i+1)/buckets;
+    const inBucket = usable.filter(c=>c.time >= from && (i===buckets-1 ? c.time <= to : c.time < to));
+    if(inBucket.length === 0) continue;
+    picksByTime.push(inBucket.reduce((a,b)=>b.sharpness>a.sharpness?b:a));
+  }
+  // 区間分割で拾えなかった分は、鮮明な順に補充
+  let picks = picksByTime.slice();
+  if(picks.length < Math.min(o.maxFrames, usable.length)){
+    const rest = usable.filter(c=>!picks.includes(c)).sort((a,b)=>b.sharpness-a.sharpness);
+    for(const r of rest){
+      if(picks.length >= o.maxFrames) break;
+      picks.push(r);
+    }
+  }
+  // ほぼ同一のコマ(静止中の連続コマなど)だけを除く。
+  // 名刺は構図が似ているので、形が同じ かつ 色もほぼ同じ 場合のみ同一とみなす(消しすぎ防止)
+  const bits = picks.length ? picks[0].hash.length : 64;
+  const thr = Math.max(2, Math.round(bits * o.similarityRatio));
+  const uniq = [];
+  for(const c of picks.sort((a,b)=>a.time-b.time)){
+    const dup = uniq.find(u=>hamming(u.hash, c.hash) <= thr && colorDist(u.color, c.color) <= o.colorTolerance);
+    if(dup){ if(c.sharpness > dup.sharpness) Object.assign(dup, c); }
+    else uniq.push(c);
+  }
+  picks = uniq.sort((a,b)=>a.time-b.time);
+  return Promise.all(picks.map(async p=>{
+    const blob = await (await fetch(p.dataUrl)).blob();
+    return { blob, time:p.time, dataUrl:p.dataUrl };
+  }));
+}
+
+function cleanCard(data){
+  const clean = {};
+  Object.keys(AI_FIELD_DESC).forEach(k=>{
+    const v = data ? data[k] : "";
+    clean[k] = (typeof v === "string") ? v.trim() : (Array.isArray(v) ? v.join(", ") : "");
+  });
+  return clean;
+}
+/* 中身が薄すぎる(名前も会社も無い)結果は捨てる */
+function isMeaningfulCard(c){
+  return !!(c && (c.name || c.company || c.email || c.phone || c.mobile));
+}
+
+const AI_BATCH_SIZE = 6;   // 1リクエストに含める画像の上限
+
 async function runAI(){
   if(!getAiKey()){
     toast("先に設定タブでGemini APIキーを登録してください");
     gotoTab("settings");
     return;
   }
-  if(!currentImageBlob){ toast("先に画像を選択してください"); return; }
+  if(pickedImages.length === 0){ toast("先に画像か動画を選択してください"); return; }
+
   $("#progressWrap").classList.remove("hidden");
   $("#aiBtn").disabled = true; $("#ocrBtn").disabled = true;
   const fill = $("#progressFill"), ptext = $("#progressText");
-  fill.style.width = "10%"; ptext.textContent = "画像を準備中...";
+  fill.style.width = "8%"; ptext.textContent = "画像を準備中...";
   try{
-    const img = await shrinkForAI(currentImageBlob).catch(()=>currentImageBlob);
-    const b64 = await blobToBase64(img);
-    fill.style.width = "40%"; ptext.textContent = "AIが名刺を読み取っています...";
-    const data = await callGemini(b64, img.type || "image/jpeg", AI_PROMPT, ()=>{
-      fill.style.width = "60%";
-    });
-    fill.style.width = "100%"; ptext.textContent = "完了!";
-    const clean = {};
-    Object.keys(AI_FIELD_DESC).forEach(k=>{
-      let v = data[k];
-      clean[k] = (typeof v === "string") ? v.trim() : (Array.isArray(v) ? v.join(", ") : "");
-    });
-    $("#rawText").textContent = JSON.stringify(data, null, 2);
+    // 縮小してbase64化
+    const prepared = [];
+    for(let i=0;i<pickedImages.length;i++){
+      const src = pickedImages[i].blob;
+      const img = await shrinkForAI(src).catch(()=>src);
+      prepared.push({ b64: await blobToBase64(img), mime: img.type || "image/jpeg" });
+      fill.style.width = (8 + 12*(i+1)/pickedImages.length) + "%";
+    }
+
+    // 常に複数対応モードで問い合わせる(1枚の写真に複数の名刺が写っていても拾えるように)
+    const chunks = [];
+    for(let i=0;i<prepared.length;i+=AI_BATCH_SIZE) chunks.push(prepared.slice(i, i+AI_BATCH_SIZE));
+
+    let cards = [];
+    const raws = [];
+    for(let ci=0; ci<chunks.length; ci++){
+      ptext.textContent = chunks.length > 1
+        ? `AIが読み取っています... (${ci+1}/${chunks.length}組)`
+        : "AIが名刺を読み取っています...";
+      const data = await callGemini(chunks[ci], AI_MULTI_PROMPT, null, AI_MULTI_SCHEMA);
+      raws.push(data);
+      const arr = Array.isArray(data && data.cards) ? data.cards
+                : (data && typeof data === "object" && (data.name || data.company)) ? [data]   // 単体で返ってきた場合の保険
+                : [];
+      cards.push(...arr.map(cleanCard));
+      fill.style.width = (20 + 75*(ci+1)/chunks.length) + "%";
+    }
+
+    cards = cards.filter(isMeaningfulCard);
+    cards = dedupeCards(cards);
+
+    $("#rawText").textContent = JSON.stringify(raws.length===1?raws[0]:raws, null, 2);
     $("#rawDetails").classList.remove("hidden");
     $("#rawDetails").open = false;
-    fillForm(clean, true, true);
-    $("#formBox").classList.remove("hidden");
-    $("#formBox").scrollIntoView({behavior:"smooth"});
-    toast("AIで読み取りました 🤖");
+    fill.style.width = "100%"; ptext.textContent = "完了!";
+
+    if(cards.length === 0){
+      toast("名刺を認識できませんでした。撮り直すか手入力をお試しください");
+      $("#rawDetails").open = true;
+      return;
+    }
+    if(cards.length === 1){
+      // 1件なら従来どおり編集フォームで確認
+      $("#batchBox").classList.add("hidden");
+      fillForm(cards[0], true, true);
+      $("#formBox").classList.remove("hidden");
+      $("#formBox").scrollIntoView({behavior:"smooth"});
+      toast("AIで読み取りました 🤖");
+    }else{
+      showBatchResults(cards);
+      toast(`${cards.length}件の名刺を読み取りました 🤖`);
+    }
   }catch(err){
     console.error(err);
     ptext.textContent = "読み取りに失敗しました";
@@ -804,6 +1109,125 @@ async function runAI(){
     $("#aiBtn").disabled = false; $("#ocrBtn").disabled = false;
     setTimeout(()=>$("#progressWrap").classList.add("hidden"), 1500);
   }
+}
+
+/* =====================================================
+   重複判定と一括結果UI
+===================================================== */
+function normKey(s){
+  return String(s||"").normalize("NFKC").toLowerCase().replace(/[\s　\-‐−ー()（）.]/g,"");
+}
+function cardKeys(c){
+  const keys = [];
+  if(c.email) keys.push("e:"+normKey(c.email));
+  if(c.mobile) keys.push("t:"+normKey(c.mobile));
+  if(c.phone) keys.push("t:"+normKey(c.phone));
+  if(c.name && c.company) keys.push("nc:"+normKey(c.name)+"/"+normKey(c.company));
+  else if(c.name) keys.push("n:"+normKey(c.name));
+  return keys;
+}
+function sameCard(a, b){
+  const ka = cardKeys(a), kb = cardKeys(b);
+  return ka.some(k=>kb.includes(k));
+}
+/* 情報量の多い方を残しつつ、空欄は相手の値で補完 */
+function mergeCards(a, b){
+  const out = Object.assign({}, a);
+  FIELDS.forEach(f=>{ if(!out[f] && b[f]) out[f] = b[f]; });
+  return out;
+}
+function dedupeCards(list){
+  const out = [];
+  for(const c of list){
+    const idx = out.findIndex(o=>sameCard(o,c));
+    if(idx >= 0) out[idx] = mergeCards(out[idx], c);
+    else out.push(c);
+  }
+  return out;
+}
+
+function findExistingCard(c){
+  return cards.find(x=>sameCard(x, c)) || null;
+}
+function showBatchResults(list){
+  batchResults = list.map(c=>{
+    const dup = findExistingCard(c);
+    return { card:c, checked: !dup, dupOf: dup };
+  });
+  batchEditIndex = -1;
+  renderBatch();
+  $("#formBox").classList.add("hidden");
+  $("#batchBox").classList.remove("hidden");
+  $("#batchBox").scrollIntoView({behavior:"smooth"});
+}
+function renderBatch(){
+  const n = batchResults.filter(b=>b.checked).length;
+  const dupN = batchResults.filter(b=>b.dupOf).length;
+  const sum = $("#batchSummary");
+  sum.className = "extract-summary";
+  sum.textContent = `🤖 ${batchResults.length}件を読み取りました。`
+    + (dupN ? ` うち${dupN}件は登録済みと思われるため、チェックを外してあります。` : "")
+    + " 内容を確認して保存してください。";
+  $("#batchSaveBtn").textContent = `💾 ${n}件を保存する`;
+  $("#batchSaveBtn").disabled = n === 0;
+  $("#batchList").innerHTML = batchResults.map((b,i)=>{
+    const c = b.card;
+    const sub = [c.company, c.dept, c.title].filter(Boolean).join(" / ");
+    const contact = [c.phone, c.mobile, c.email].filter(Boolean).join("  ");
+    return `<label class="batch-item${b.dupOf?" dup":""}">
+      <input type="checkbox" data-i="${i}"${b.checked?" checked":""}>
+      <span class="bi-body">
+        <span class="bi-name">${esc(c.name || "(氏名なし)")}</span>
+        ${sub?`<span class="bi-sub">${esc(sub)}</span>`:""}
+        ${contact?`<span class="bi-sub">${esc(contact)}</span>`:""}
+        ${b.dupOf?`<span class="bi-warn">⚠️ 「${esc(b.dupOf.name||"")}」として登録済みの可能性</span>`:""}
+      </span>
+      <button type="button" class="bi-edit" data-edit="${i}">✏️ 編集</button>
+    </label>`;
+  }).join("");
+}
+$("#batchList").addEventListener("change", e=>{
+  const cb = e.target.closest("input[type=checkbox]");
+  if(!cb) return;
+  batchResults[+cb.dataset.i].checked = cb.checked;
+  renderBatch();
+});
+$("#batchList").addEventListener("click", e=>{
+  const btn = e.target.closest("[data-edit]");
+  if(!btn) return;
+  e.preventDefault();
+  batchEditIndex = +btn.dataset.edit;
+  fillForm(batchResults[batchEditIndex].card, true, true);
+  $("#formBox").classList.remove("hidden");
+  $("#saveBtn").textContent = "✅ この内容で確定";
+  $("#formBox").scrollIntoView({behavior:"smooth"});
+});
+async function saveBatch(){
+  const picks = batchResults.filter(b=>b.checked);
+  if(picks.length === 0){ toast("保存する名刺を選んでください"); return; }
+  $("#batchSaveBtn").disabled = true;
+  let saved = 0;
+  for(const b of picks){
+    const data = Object.assign({}, b.card);
+    data.id = uid();
+    data.createdAt = nowStr();
+    data.updatedAt = data.createdAt;
+    cards.unshift(data);
+    saved++;
+  }
+  persistLocal();
+  renderList();
+  if(fb.connected && fb.user){
+    for(const c of cards.slice(0, saved)){
+      try{ await userCol().doc(c.id).set(c); }catch(e){ console.error(e); }
+    }
+  }
+  batchResults = [];
+  batchEditIndex = -1;
+  $("#batchBox").classList.add("hidden");
+  resetScanUI();
+  gotoTab("list");
+  toast(`${saved}件を保存しました 📇`);
 }
 
 /* AI送信用に長辺1280pxへ縮小(通信量と無料枠の節約) */
@@ -857,7 +1281,8 @@ async function saveAiKey(){
   const blob = await new Promise(r=>cv.toBlob(r,"image/jpeg",0.8));
   try{
     const b64 = await blobToBase64(blob);
-    await callGemini(b64, "image/jpeg", 'この画像について、必ず {"ok":"yes"} というJSONだけを返してください。');
+    await callGemini([{b64, mime:"image/jpeg"}], 'この画像について、必ず {"ok":"yes"} というJSONだけを返してください。',
+      null, { type:"object", properties:{ ok:{type:"string"} }, required:["ok"] });
     setAiStatus("ok","✅ 接続できました。読み取り画面で「AIで読み取る」が使えます。");
     toast("AI読み取りを有効にしました 🤖");
   }catch(e){
@@ -907,45 +1332,67 @@ function preprocessImage(file){
 
 /* ---------- OCR実行 ---------- */
 async function runOCR(){
-  if(!currentImageBlob){ toast("先に画像を選択してください"); return; }
+  if(pickedImages.length === 0){ toast("先に画像か動画を選択してください"); return; }
   if(typeof Tesseract === "undefined"){
     toast("OCRライブラリを読み込めませんでした。通信環境をご確認ください");
     return;
   }
   $("#progressWrap").classList.remove("hidden");
-  $("#ocrBtn").disabled = true;
+  $("#ocrBtn").disabled = true; $("#aiBtn").disabled = true;
   const fill = $("#progressFill"), ptext = $("#progressText");
   fill.style.width = "3%"; ptext.textContent = "画像を準備中...";
+  const total = pickedImages.length;
+  const results = [], raws = [];
   try{
-    const pre = await preprocessImage(currentImageBlob).catch(()=>currentImageBlob);
-    const result = await Tesseract.recognize(pre, "jpn+eng", {
-      logger: m=>{
-        if(m.status === "recognizing text"){
-          const p = Math.round(m.progress*100);
-          fill.style.width = (20 + p*0.8) + "%";
-          ptext.textContent = `文字を認識中... ${p}%`;
-        }else{
-          fill.style.width = "15%";
-          ptext.textContent = "認識エンジンを準備中...(初回は時間がかかります)";
+    for(let i=0;i<total;i++){
+      const base = (i/total)*100, span = 100/total;
+      const pre = await preprocessImage(pickedImages[i].blob).catch(()=>pickedImages[i].blob);
+      const result = await Tesseract.recognize(pre, "jpn+eng", {
+        logger: m=>{
+          if(m.status === "recognizing text"){
+            const p = m.progress;
+            fill.style.width = (base + span*(0.2 + p*0.8)) + "%";
+            ptext.textContent = total>1
+              ? `文字を認識中... (${i+1}/${total}枚目 ${Math.round(p*100)}%)`
+              : `文字を認識中... ${Math.round(p*100)}%`;
+          }else{
+            fill.style.width = (base + span*0.15) + "%";
+            ptext.textContent = "認識エンジンを準備中...(初回は時間がかかります)";
+          }
         }
-      }
-    });
+      });
+      const raw = (result && result.data && result.data.text) ? result.data.text : "";
+      raws.push(raw);
+      const parsed = parseOCR(raw);
+      if(isMeaningfulCard(parsed)) results.push(parsed);
+    }
     fill.style.width = "100%"; ptext.textContent = "完了!";
-    const raw = (result && result.data && result.data.text) ? result.data.text : "";
-    $("#rawText").textContent = raw || "(テキストを検出できませんでした)";
+    $("#rawText").textContent = raws.map((r,i)=>total>1?`--- ${i+1}枚目 ---\n${r}`:r).join("\n\n") || "(テキストを検出できませんでした)";
     $("#rawDetails").classList.remove("hidden");
-    const parsed = parseOCR(raw);
-    fillForm(parsed, true);
-    $("#rawDetails").open = !Object.values(parsed).some(v=>v);   // 何も取れない時は元テキストを開く
-    $("#formBox").classList.remove("hidden");
-    $("#formBox").scrollIntoView({behavior:"smooth"});
-    toast("読み取り完了!内容を確認してください");
+
+    const merged = dedupeCards(results);
+    if(merged.length === 0){
+      const parsed = parseOCR(raws[0]||"");
+      fillForm(parsed, true);
+      $("#rawDetails").open = true;
+      $("#formBox").classList.remove("hidden");
+      $("#formBox").scrollIntoView({behavior:"smooth"});
+      toast("うまく読み取れませんでした。元テキストを見ながら手入力してください");
+    }else if(merged.length === 1){
+      fillForm(merged[0], true);
+      $("#formBox").classList.remove("hidden");
+      $("#formBox").scrollIntoView({behavior:"smooth"});
+      toast("読み取り完了!内容を確認してください");
+    }else{
+      showBatchResults(merged);
+      toast(`${merged.length}件を読み取りました`);
+    }
   }catch(err){
     console.error(err);
     ptext.textContent = "読み取りに失敗しました";
     toast("OCRに失敗しました。画像を変えるか、手入力をお試しください");
   }finally{
-    $("#ocrBtn").disabled = false;
+    $("#ocrBtn").disabled = false; $("#aiBtn").disabled = false;
     setTimeout(()=>$("#progressWrap").classList.add("hidden"), 1500);
   }
 }
@@ -984,12 +1431,57 @@ function readForm(){
 function resetScanUI(){
   fillForm({});
   $("#formBox").classList.add("hidden");
+  $("#batchBox").classList.add("hidden");
   $("#previewWrap").classList.add("hidden");
   $("#rawDetails").classList.add("hidden");
   $("#rawText").textContent = "";
+  $("#saveBtn").textContent = "💾 保存する";
+  pickedImages.forEach(p=>{ if(p.url) URL.revokeObjectURL(p.url); });
+  pickedImages = [];
   currentImageBlob = null;
+  batchResults = [];
+  batchEditIndex = -1;
   $("#cameraInput").value = "";
   $("#galleryInput").value = "";
+  $("#videoInput").value = "";
+}
+
+/* ---------- 選択中の画像サムネイル ---------- */
+function renderThumbs(){
+  const wrap = $("#previewWrap");
+  if(pickedImages.length === 0){ wrap.classList.add("hidden"); return; }
+  wrap.classList.remove("hidden");
+  $("#thumbs").innerHTML = pickedImages.map((p,i)=>
+    `<div class="thumb"><img src="${p.url}" alt="${i+1}枚目">
+       <span class="idx">${p.label || (i+1)}</span>
+       <button type="button" class="rm" data-rm="${i}" title="外す">×</button>
+     </div>`).join("");
+  const n = pickedImages.length;
+  $("#pickInfo").textContent = n === 1
+    ? "1枚を読み取ります"
+    : `${n}枚を一度に読み取ります(複数の名刺をまとめて登録できます)`;
+  currentImageBlob = pickedImages[0].blob;
+}
+$("#thumbs").addEventListener("click", e=>{
+  const btn = e.target.closest("[data-rm]");
+  if(!btn) return;
+  const i = +btn.dataset.rm;
+  if(pickedImages[i] && pickedImages[i].url) URL.revokeObjectURL(pickedImages[i].url);
+  pickedImages.splice(i,1);
+  renderThumbs();
+});
+function addImages(files, labelPrefix){
+  const arr = Array.from(files||[]).filter(f=>f && /^image\//.test(f.type || ""));
+  const MAX = 20;
+  let added = 0;
+  for(const f of arr){
+    if(pickedImages.length >= MAX){ toast(`一度に読み取れるのは${MAX}枚までです`); break; }
+    pickedImages.push({ blob:f, url:URL.createObjectURL(f), label: labelPrefix ? labelPrefix+(++added) : null });
+  }
+  renderThumbs();
+  $("#formBox").classList.add("hidden");
+  $("#batchBox").classList.add("hidden");
+  $("#rawDetails").classList.add("hidden");
 }
 
 /* ---------- 保存・削除 ---------- */
@@ -999,6 +1491,20 @@ function persistLocal(){
 async function saveCard(){
   const data = readForm();
   if(!data.name){ toast("氏名を入力してください"); $("#f_name").focus(); return; }
+  // 一括結果の1件を編集していた場合は、リストに戻すだけ
+  if(batchEditIndex >= 0 && batchResults[batchEditIndex]){
+    const b = batchResults[batchEditIndex];
+    FIELDS.forEach(f=>{ b.card[f] = data[f]; });
+    b.dupOf = findExistingCard(b.card);
+    batchEditIndex = -1;
+    $("#formBox").classList.add("hidden");
+    $("#saveBtn").textContent = "💾 保存する";
+    fillForm({});
+    renderBatch();
+    $("#batchBox").scrollIntoView({behavior:"smooth"});
+    toast("反映しました");
+    return;
+  }
   const isNew = !data.id;
   if(isNew){
     data.id = uid();
@@ -1317,16 +1823,47 @@ function disconnectFirebase(){
 $("#cameraBtn").addEventListener("click", ()=>$("#cameraInput").click());
 $("#galleryBtn").addEventListener("click", ()=>$("#galleryInput").click());
 function onImagePicked(e){
-  const f = e.target.files && e.target.files[0];
-  if(!f) return;
-  currentImageBlob = f;
-  $("#previewImg").src = URL.createObjectURL(f);
-  $("#previewWrap").classList.remove("hidden");
-  $("#formBox").classList.add("hidden");
-  $("#rawDetails").classList.add("hidden");
+  if(!e.target.files || e.target.files.length === 0) return;
+  addImages(e.target.files);
+  e.target.value = "";
 }
 $("#cameraInput").addEventListener("change", onImagePicked);
 $("#galleryInput").addEventListener("change", onImagePicked);
+$("#videoBtn").addEventListener("click", ()=>$("#videoInput").click());
+$("#videoInput").addEventListener("change", async e=>{
+  const f = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if(!f) return;
+  $("#progressWrap").classList.remove("hidden");
+  const fill = $("#progressFill"), ptext = $("#progressText");
+  fill.style.width = "5%"; ptext.textContent = "動画を読み込んでいます...";
+  try{
+    const frames = await extractVideoFrames(f, {}, (i,total)=>{
+      fill.style.width = (5 + 85*i/total) + "%";
+      ptext.textContent = `動画を解析しています... (${i}/${total})`;
+    });
+    fill.style.width = "100%";
+    ptext.textContent = `${frames.length}コマを抽出しました`;
+    // 動画から抽出したコマを対象画像に追加
+    for(const fr of frames){
+      pickedImages.push({
+        blob: fr.blob,
+        url: fr.dataUrl,
+        label: fr.time.toFixed(1) + "s"
+      });
+    }
+    renderThumbs();
+    $("#formBox").classList.add("hidden");
+    $("#batchBox").classList.add("hidden");
+    toast(`動画から${frames.length}コマを取り出しました 🎥`);
+  }catch(err){
+    console.error(err);
+    ptext.textContent = "動画を処理できませんでした";
+    toast("動画の読み込みに失敗しました: " + (err.message||err));
+  }finally{
+    setTimeout(()=>$("#progressWrap").classList.add("hidden"), 1500);
+  }
+});
 $("#ocrBtn").addEventListener("click", runOCR);
 $("#aiBtn").addEventListener("click", runAI);
 $("#aiSaveBtn").addEventListener("click", saveAiKey);
@@ -1337,7 +1874,21 @@ $("#manualBtn").addEventListener("click", ()=>{
   $("#formBox").scrollIntoView({behavior:"smooth"});
 });
 $("#saveBtn").addEventListener("click", saveCard);
-$("#cancelBtn").addEventListener("click", ()=>{ resetScanUI(); gotoTab("list"); });
+$("#cancelBtn").addEventListener("click", ()=>{
+  if(batchEditIndex >= 0){          // 一括結果の編集中なら一覧に戻すだけ
+    batchEditIndex = -1;
+    $("#formBox").classList.add("hidden");
+    $("#saveBtn").textContent = "💾 保存する";
+    fillForm({});
+    $("#batchBox").scrollIntoView({behavior:"smooth"});
+    return;
+  }
+  resetScanUI(); gotoTab("list");
+});
+$("#batchSaveBtn").addEventListener("click", saveBatch);
+$("#batchCancelBtn").addEventListener("click", ()=>{ resetScanUI(); gotoTab("list"); });
+$("#batchAllBtn").addEventListener("click", ()=>{ batchResults.forEach(b=>b.checked=true); renderBatch(); });
+$("#batchNoneBtn").addEventListener("click", ()=>{ batchResults.forEach(b=>b.checked=false); renderBatch(); });
 $("#searchBox").addEventListener("input", renderList);
 $("#csvBtn").addEventListener("click", exportCSV);
 $("#jsonExportBtn").addEventListener("click", exportJSON);
