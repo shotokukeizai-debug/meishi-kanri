@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>名刺管理 - Meishi Manager</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#3b5bdb">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="名刺管理">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
+<style>
+:root{
+  --primary:#3b5bdb;
+  --primary-dark:#2f4bc0;
+  --primary-light:#edf2ff;
+  --accent:#0ca678;
+  --danger:#e03131;
+  --bg:#f4f6fb;
+  --card:#ffffff;
+  --text:#1a2233;
+  --text-sub:#68738a;
+  --border:#e2e6f0;
+  --radius:14px;
+  --shadow:0 2px 10px rgba(30,40,80,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP","Yu Gothic UI",Meiryo,sans-serif;
+  background:var(--bg);color:var(--text);font-size:15px;line-height:1.6;
+}
+.app{max-width:680px;margin:0 auto;min-height:100%;display:flex;flex-direction:column}
+header.appbar{
+  position:sticky;top:0;z-index:50;
+  background:linear-gradient(135deg,#3b5bdb,#5f3dc4);
+  color:#fff;padding:14px 18px 10px;
+  border-radius:0 0 18px 18px;box-shadow:var(--shadow);
+}
+.appbar-row{display:flex;align-items:center;justify-content:space-between}
+.appbar h1{font-size:19px;font-weight:700;letter-spacing:.02em}
+.sync-badge{
+  font-size:11px;padding:4px 10px;border-radius:999px;
+  background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);
+  display:inline-flex;align-items:center;gap:5px;white-space:nowrap;
+}
+.sync-badge .dot{width:8px;height:8px;border-radius:50%;background:#adb5bd}
+.sync-badge.on .dot{background:#69db7c;box-shadow:0 0 6px #69db7c}
+.sync-badge.err .dot{background:#ffa8a8}
+nav.tabs{display:flex;gap:6px;margin-top:12px}
+nav.tabs button{
+  flex:1;border:none;background:rgba(255,255,255,.14);color:#e7ecff;
+  padding:9px 4px;border-radius:10px 10px 0 0;font-size:13.5px;font-weight:600;
+  cursor:pointer;transition:.15s;
+}
+nav.tabs button.active{background:var(--bg);color:var(--primary)}
+main{flex:1;padding:16px 14px 90px}
+section.tab{display:none}
+section.tab.show{display:block;animation:fade .18s ease}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ---------- common ---------- */
+.card-box{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
+h2.sec{font-size:15px;font-weight:700;margin-bottom:10px;color:var(--primary-dark);display:flex;align-items:center;gap:6px}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  border:none;border-radius:10px;padding:11px 16px;font-size:14.5px;font-weight:600;
+  cursor:pointer;transition:.15s;font-family:inherit;
+}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-dark)}
+.btn-accent{background:var(--accent);color:#fff}
+.btn-outline{background:#fff;color:var(--primary);border:1.5px solid var(--primary)}
+.btn-ghost{background:var(--primary-light);color:var(--primary-dark)}
+.btn-danger-ghost{background:#fff0f0;color:var(--danger)}
+.btn-sm{padding:7px 12px;font-size:13px;border-radius:8px}
+.btn-block{width:100%}
+.btn[disabled]{opacity:.5;pointer-events:none}
+input[type=text],input[type=tel],input[type=email],input[type=url],input[type=password],textarea{
+  width:100%;border:1.5px solid var(--border);border-radius:10px;
+  padding:10px 12px;font-size:15px;font-family:inherit;background:#fff;color:var(--text);
+  transition:border-color .15s;
+}
+input:focus,textarea:focus{outline:none;border-color:var(--primary)}
+label.fld{display:block;margin-bottom:10px}
+label.fld span{display:block;font-size:12px;font-weight:600;color:var(--text-sub);margin-bottom:4px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.muted{color:var(--text-sub);font-size:12.5px}
+.hidden{display:none!important}
+
+/* ---------- list tab ---------- */
+.search-wrap{position:relative;margin-bottom:12px}
+.search-wrap input{padding-left:38px;background:#fff}
+.search-wrap .ico{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-sub);font-size:15px}
+.toolbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.count-line{font-size:12.5px;color:var(--text-sub);margin-bottom:8px}
+.meishi{
+  background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:14px 16px;margin-bottom:10px;border-left:4px solid var(--primary);
+}
+.meishi .m-name{font-size:16.5px;font-weight:700}
+.meishi .m-kana{font-size:11px;color:var(--text-sub);margin-left:6px;font-weight:400}
+.meishi .m-org{font-size:13px;color:var(--text-sub);margin-top:2px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{
+  font-size:12px;background:var(--primary-light);color:var(--primary-dark);
+  padding:3px 10px;border-radius:999px;text-decoration:none;max-width:100%;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.m-detail{margin-top:10px;border-top:1px dashed var(--border);padding-top:10px;font-size:13.5px}
+.m-detail div{margin-bottom:3px}
+.m-detail b{color:var(--text-sub);font-weight:600;font-size:12px;margin-right:6px}
+.m-actions{display:flex;gap:8px;margin-top:10px}
+.empty-state{text-align:center;padding:46px 10px;color:var(--text-sub)}
+.empty-state .big{font-size:44px;margin-bottom:10px}
+
+/* ---------- scan tab ---------- */
+.scan-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px}
+.scan-btns .btn{padding:16px 8px;flex-direction:column;gap:4px;font-size:14px}
+.scan-btns .big-ico{font-size:26px}
+#previewWrap{margin-top:12px;text-align:center}
+#previewImg{max-width:100%;max-height:280px;border-radius:10px;box-shadow:var(--shadow)}
+.progress-wrap{margin-top:12px}
+.progress-bar{height:10px;background:var(--border);border-radius:999px;overflow:hidden}
+.progress-bar>div{height:100%;width:0%;background:linear-gradient(90deg,var(--primary),var(--accent));transition:width .2s;border-radius:999px}
+.progress-text{font-size:12.5px;color:var(--text-sub);margin-top:5px;text-align:center}
+details.raw{margin-top:12px;font-size:12.5px}
+details.raw pre{
+  white-space:pre-wrap;background:#f1f3f9;border-radius:8px;padding:10px;
+  margin-top:6px;font-size:12px;max-height:180px;overflow:auto;
+}
+.form-actions{display:flex;gap:10px;margin-top:6px}
+.form-actions .btn{flex:1}
+
+/* ---------- settings tab ---------- */
+textarea#fbConfig{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;min-height:130px}
+.status-line{font-size:13px;margin-top:10px;padding:9px 12px;border-radius:9px;background:var(--primary-light)}
+.status-line.ok{background:#e6fcf5;color:#087f5b}
+.status-line.err{background:#fff0f0;color:var(--danger)}
+ol.steps{padding-left:20px;font-size:13.5px}
+ol.steps li{margin-bottom:9px}
+ol.steps code{background:#f1f3f9;padding:1px 6px;border-radius:5px;font-size:12px}
+.note-box{background:#fff9db;border:1px solid #ffe066;border-radius:10px;padding:10px 12px;font-size:12.5px;margin-top:10px;color:#5c4d00}
+.safe-box{background:#e6fcf5;border:1px solid #63e6be;border-radius:10px;padding:10px 12px;font-size:12.5px;margin-top:10px;color:#087f5b}
+pre.code-block{
+  background:#232a3d;color:#d8e2ff;border-radius:10px;padding:12px;
+  font-size:11.5px;line-height:1.5;overflow-x:auto;margin:8px 0;
+  font-family:ui-monospace,Menlo,Consolas,monospace;white-space:pre;
+}
+
+/* toast */
+#toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:#232a3d;color:#fff;padding:11px 20px;border-radius:999px;font-size:13.5px;
+  opacity:0;pointer-events:none;transition:.25s;z-index:99;box-shadow:0 4px 16px rgba(0,0,0,.25);
+  max-width:90vw;text-align:center;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="appbar">
+    <div class="appbar-row">
+      <h1>📇 名刺管理</h1>
+      <span class="sync-badge" id="syncBadge"><span class="dot"></span><span id="syncText">ローカル保存</span></span>
+    </div>
+    <nav class="tabs">
+      <button type="button" data-tab="list" class="active">一覧</button>
+      <button type="button" data-tab="scan">読み取り・追加</button>
+      <button type="button" data-tab="settings">設定・同期</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ============ 一覧 ============ -->
+    <section class="tab show" id="tab-list">
+      <div class="search-wrap">
+        <span class="ico">🔍</span>
+        <input type="text" id="searchBox" placeholder="名前・会社・電話・メールで検索">
+      </div>
+      <div class="toolbar">
+        <button class="btn btn-accent btn-sm" id="csvBtn">📄 CSV出力</button>
+        <button class="btn btn-ghost btn-sm" id="jsonExportBtn">💾 バックアップ</button>
+        <button class="btn btn-ghost btn-sm" id="jsonImportBtn">📥 復元</button>
+        <input type="file" id="jsonImportFile" accept=".json,application/json" class="hidden">
+      </div>
+      <div class="count-line" id="countLine"></div>
+      <div id="cardList"></div>
+    </section>
+
+    <!-- ============ 読み取り・追加 ============ -->
+    <section class="tab" id="tab-scan">
+      <div class="card-box">
+        <h2 class="sec">📷 名刺を読み取る</h2>
+        <div class="scan-btns">
+          <button class="btn btn-primary" id="cameraBtn"><span class="big-ico">📸</span>カメラで撮影</button>
+          <button class="btn btn-outline" id="galleryBtn"><span class="big-ico">🖼️</span>画像を選択</button>
+        </div>
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
+        <input type="file" id="galleryInput" accept="image/*" class="hidden">
+        <button class="btn btn-ghost btn-block" id="manualBtn" style="margin-top:4px">✏️ 手入力で追加する</button>
+
+        <div id="previewWrap" class="hidden">
+          <img id="previewImg" alt="名刺プレビュー">
+          <button class="btn btn-primary btn-block" id="ocrBtn" style="margin-top:10px">🔍 この画像を読み取る</button>
+        </div>
+
+        <div class="progress-wrap hidden" id="progressWrap">
+          <div class="progress-bar"><div id="progressFill"></div></div>
+          <div class="progress-text" id="progressText">準備中...</div>
+        </div>
+
+        <details class="raw hidden" id="rawDetails">
+          <summary>読み取った元テキストを見る</summary>
+          <pre id="rawText"></pre>
+        </details>
+      </div>
+
+      <div class="card-box hidden" id="formBox">
+        <h2 class="sec">📝 内容を確認・編集</h2>
+        <p class="muted" style="margin-bottom:10px">自動抽出の結果です。間違いがあれば修正して保存してください。</p>
+        <input type="hidden" id="f_id">
+        <label class="fld"><span>氏名 *</span><input type="text" id="f_name" placeholder="山田 太郎"></label>
+        <label class="fld"><span>ふりがな</span><input type="text" id="f_kana" placeholder="やまだ たろう"></label>
+        <label class="fld"><span>会社名</span><input type="text" id="f_company" placeholder="株式会社サンプル"></label>
+        <div class="row2">
+          <label class="fld"><span>部署</span><input type="text" id="f_dept" placeholder="営業部"></label>
+          <label class="fld"><span>役職</span><input type="text" id="f_title" placeholder="部長"></label>
+        </div>
+        <div class="row2">
+          <label class="fld"><span>電話番号</span><input type="tel" id="f_phone" placeholder="03-1234-5678"></label>
+          <label class="fld"><span>携帯番号</span><input type="tel" id="f_mobile" placeholder="090-1234-5678"></label>
+        </div>
+        <div class="row2">
+          <label class="fld"><span>FAX</span><input type="tel" id="f_fax"></label>
+          <label class="fld"><span>郵便番号</span><input type="text" id="f_postal" placeholder="100-0001"></label>
+        </div>
+        <label class="fld"><span>メールアドレス</span><input type="email" id="f_email" placeholder="taro@example.com"></label>
+        <label class="fld"><span>URL</span><input type="url" id="f_url" placeholder="https://example.com"></label>
+        <label class="fld"><span>住所</span><textarea id="f_address" rows="2" placeholder="東京都千代田区1-2-3"></textarea></label>
+        <label class="fld"><span>メモ</span><textarea id="f_memo" rows="2" placeholder="展示会で名刺交換 など"></textarea></label>
+        <div class="form-actions">
+          <button class="btn btn-ghost" id="cancelBtn">キャンセル</button>
+          <button class="btn btn-primary" id="saveBtn">💾 保存する</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 設定・同期 ============ -->
+    <section class="tab" id="tab-settings">
+      <div class="card-box">
+        <h2 class="sec">☁️ クラウド同期(Firebase)</h2>
+        <p class="muted" style="margin-bottom:8px">スマホとPCで同じデータを使うには、無料のFirebaseに接続します。下の手順で取得した構成(firebaseConfig)を貼り付けてください。</p>
+        <textarea id="fbConfig" placeholder='ここに貼り付け 例:
+{
+  "apiKey": "AIza...",
+  "authDomain": "xxx.firebaseapp.com",
+  "projectId": "xxx",
+  "storageBucket": "xxx.appspot.com",
+  "messagingSenderId": "123",
+  "appId": "1:123:web:abc"
+}
+※ const firebaseConfig = {...}; の形のままでもOK'></textarea>
+        <div class="form-actions">
+          <button class="btn btn-danger-ghost" id="fbDisconnectBtn">切断</button>
+          <button class="btn btn-primary" id="fbConnectBtn">☁️ 接続する</button>
+        </div>
+        <div class="status-line" id="fbStatus">未接続(この端末のみに保存されます)</div>
+
+        <div id="loginBox" class="hidden" style="margin-top:14px;border-top:1px dashed var(--border);padding-top:14px">
+          <div id="authForms">
+            <label class="fld"><span>メールアドレス</span><input type="email" id="authEmail" autocomplete="username" placeholder="you@example.com"></label>
+            <label class="fld"><span>パスワード(6文字以上)</span><input type="password" id="authPass" autocomplete="current-password"></label>
+            <div class="form-actions">
+              <button class="btn btn-outline" id="signupBtn">🆕 新規登録</button>
+              <button class="btn btn-primary" id="loginBtn">🔑 ログイン</button>
+            </div>
+            <p class="muted" style="margin-top:8px">初めての場合は「新規登録」。スマホとPCで<b>同じメール・パスワード</b>でログインすると、あなたのデータだけが同期されます。</p>
+          </div>
+          <div id="logoutRow" class="hidden" style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+            <span class="muted" id="loginState"></span>
+            <button class="btn btn-danger-ghost btn-sm" id="logoutBtn">ログアウト</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-box">
+        <h2 class="sec">🛠 Firebaseのセットアップ手順(初回のみ・約7分)</h2>
+        <ol class="steps">
+          <li><a href="https://console.firebase.google.com/" target="_blank">Firebaseコンソール</a>をGoogleアカウントで開き、「プロジェクトを作成」→ 名前は自由(例: <code>meishi</code>)。Google アナリティクスは<b>無効でOK</b>。</li>
+          <li>左メニュー「構築」→「<b>Authentication</b>」→「始める」→ ログイン方法で「<b>メール / パスワード</b>」を選んで<b>有効化</b>して保存。</li>
+          <li>左メニュー「構築」→「<b>Firestore Database</b>」→「データベースを作成」。ロケーションは <code>asia-northeast1</code>(東京)、<b>本番環境モード</b>で開始。</li>
+          <li>Firestoreの「<b>ルール</b>」タブを開き、中身を下のルールに<b>まるごと置き換えて</b>「公開」。これで<b>ログインした本人しか自分のデータを読み書きできなく</b>なります。
+<pre class="code-block">rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == uid;
+    }
+  }
+}</pre></li>
+          <li>プロジェクトの概要ページで <b>「&lt;/&gt;」(ウェブ)アイコン</b> をタップしてアプリを追加(名前は自由)。表示される <code>firebaseConfig = { ... }</code> をコピーして上の欄に貼り付け、「接続する」を押す。</li>
+          <li>接続後に出るフォームでメール・パスワードを決めて「<b>新規登録</b>」。もう一方の端末でも同じ構成を貼り付けて接続し、<b>同じメール・パスワードでログイン</b>すれば同期完了です。</li>
+        </ol>
+        <div class="safe-box">🔒 <b>セキュリティについて</b>: 名刺データはあなたのFirebaseプロジェクト内にのみ保存され、上のルールによりログインした本人以外は一切読み書きできません。アプリのHTMLファイルや公開URL自体に名刺データは含まれないため、URLを他の人が開いても空のアプリが表示されるだけです。</div>
+      </div>
+
+      <div class="card-box">
+        <h2 class="sec">💡 使い方メモ</h2>
+        <ol class="steps">
+          <li>「読み取り・追加」タブでカメラ撮影 or 画像選択 → 自動でOCR(日本語+英語)します。文字認識には数十秒かかることがあります。</li>
+          <li>読み取り結果は必ず確認・修正してから保存してください(OCRは完璧ではありません)。</li>
+          <li>「CSV出力」でExcelでそのまま開けるCSV(UTF-8 BOM付き)をダウンロードできます。</li>
+          <li>OCRとクラウド同期にはインターネット接続が必要です。</li>
+          <li><b>アプリとしてインストール</b>: iPhoneはSafariで開いて「共有」→「ホーム画面に追加」、AndroidはChromeのメニュー→「アプリをインストール」。アイコンから全画面アプリとして起動できます。</li>
+        </ol>
+      </div>
+    </section>
+  </main>
+</div>
+<div id="toast"></div>
+<script>
+"use strict";
+/* =====================================================
+   名刺管理アプリ  Meishi Manager
+   - OCR: Tesseract.js (jpn+eng)
+   - 同期: Firebase Firestore (任意)
+   - 保存: メモリ + localStorage(使える環境のみ) + Firestore
+===================================================== */
+
+/* ---------- safe storage (localStorageが使えない環境でも動作) ---------- */
+const store = {
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+
+const LS_CARDS = "meishi_cards_v1";
+const LS_FBCFG = "meishi_fb_config_v1";
+
+/* ---------- state ---------- */
+let cards = [];            // {id,name,kana,company,dept,title,phone,mobile,fax,email,url,postal,address,memo,createdAt,updatedAt}
+let fb = { app:null, db:null, auth:null, user:null, unsub:null, connected:false, authWatch:false };
+let currentImageBlob = null;
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+function toast(msg){
+  const t = $("#toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(t._tm);
+  t._tm = setTimeout(()=>t.classList.remove("show"), 2600);
+}
+function esc(s){
+  return String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+function nowStr(){
+  const d = new Date();
+  const p = n => String(n).padStart(2,"0");
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/* ---------- tabs (イベント委譲でどの環境でも確実に反応) ---------- */
+function gotoTab(name){
+  const btn = document.querySelector(`nav.tabs button[data-tab="${name}"]`);
+  if(!btn) return;
+  $$("nav.tabs button").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  $$("section.tab").forEach(s=>s.classList.remove("show"));
+  const sec = $("#tab-"+name);
+  if(sec) sec.classList.add("show");
+}
+$("nav.tabs").addEventListener("click", e=>{
+  const btn = e.target.closest("button[data-tab]");
+  if(btn) gotoTab(btn.dataset.tab);
+});
+
+/* =====================================================
+   OCR & 項目抽出
+===================================================== */
+const PREF_RE = /(北海道|東京都|(?:京都|大阪)府|(?:青森|岩手|宮城|秋田|山形|福島|茨城|栃木|群馬|埼玉|千葉|神奈川|新潟|富山|石川|福井|山梨|長野|岐阜|静岡|愛知|三重|滋賀|兵庫|奈良|和歌山|鳥取|島根|岡山|広島|山口|徳島|香川|愛媛|高知|福岡|佐賀|長崎|熊本|大分|宮崎|鹿児島|沖縄)県)/;
+const COMPANY_RE = /(株式会社|有限会社|合同会社|合資会社|合名会社|一般社団法人|一般財団法人|公益社団法人|公益財団法人|NPO法人|特定非営利活動法人|医療法人|学校法人|税理士法人|弁護士法人|司法書士法人|行政書士法人|社会保険労務士法人|Inc\.|Corp\.?|Corporation|Co\.\s?,?\s?Ltd\.?|LLC|K\.K\.|G\.K\.)/i;
+const TITLE_WORDS = ["代表取締役社長","代表取締役","取締役","執行役員","監査役","代表","社長","副社長","専務","常務","本部長","支店長","店長","工場長","所長","局長","部長","次長","課長","係長","主任","主査","主事","室長","センター長","リーダー","マネージャー","マネジャー","ディレクター","プロデューサー","エンジニア","デザイナー","コンサルタント","CEO","COO","CFO","CTO","CIO","President","Director","Manager","Chief","Officer","Founder"];
+const DEPT_RE = /(部|課|室|係|グループ|チーム|本部|支社|支店|営業所|事業部|統括|カンパニー|Division|Department|Dept\.?|Group|Team)$/i;
+
+function parseOCR(rawText){
+  const r = { name:"",kana:"",company:"",dept:"",title:"",phone:"",mobile:"",fax:"",email:"",url:"",postal:"",address:"",memo:"" };
+  if(!rawText) return r;
+  // 全角→半角正規化
+  const text = rawText.normalize("NFKC");
+  let lines = text.split(/\r?\n/).map(s=>s.replace(/\s+/g," ").trim()).filter(s=>s.length>0);
+  const used = new Array(lines.length).fill(false);
+
+  // --- email ---
+  for(let i=0;i<lines.length;i++){
+    const m = lines[i].match(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/);
+    if(m && !r.email){ r.email = m[0]; used[i] = true; }
+  }
+  // --- url ---
+  for(let i=0;i<lines.length;i++){
+    if(used[i]) continue;
+    const m = lines[i].match(/(https?:\/\/[^\s]+|www\.[^\s]+|[A-Za-z0-9\-]+\.(?:co\.jp|com|jp|net|org|io)(?:\/[^\s]*)?)/i);
+    if(m && !r.url && !lines[i].includes("@")){
+      let u = m[0].replace(/[),.。、]+$/,"");
+      if(!/^https?:/i.test(u)) u = "https://" + u;
+      r.url = u; used[i] = true;
+    }
+  }
+  // --- 郵便番号 ---
+  for(let i=0;i<lines.length;i++){
+    const line = lines[i];
+    const hasMark = /〒/.test(line);
+    // TEL/FAX行の電話番号を郵便番号と誤認しないようにする
+    if(!hasMark && /tel|fax|電話|携帯|mobile|cell|ファックス/i.test(line)) continue;
+    const m = line.match(/(?:〒\s*|^|[^\d])(\d{3})\s*[-‐−ー]\s*(\d{4})(?!\d)/);
+    if(m && !r.postal){ r.postal = m[1]+"-"+m[2]; }
+  }
+  // --- 電話 / 携帯 / FAX ---
+  const phoneRe = /0\d{1,4}\s*[-‐−ー()\s]?\s*\d{1,4}\s*[-‐−ー()\s]?\s*\d{3,4}/g;
+  for(let i=0;i<lines.length;i++){
+    const line = lines[i];
+    let m;
+    while((m = phoneRe.exec(line)) !== null){
+      const numRaw = m[0];
+      const digits = numRaw.replace(/\D/g,"");
+      if(digits.length < 10 || digits.length > 11) continue;
+      if(r.postal && digits.startsWith(r.postal.replace("-",""))) continue; // 郵便番号の誤検出防止
+      // 元の区切り位置をなるべく保持して整形
+      let num = numRaw.replace(/[()\s‐−ー]/g,"-").replace(/-{2,}/g,"-").replace(/^-|-$/g,"");
+      if(!num.includes("-")){
+        num = digits.length===11
+          ? digits.replace(/(\d{3})(\d{4})(\d{4})/,"$1-$2-$3")
+          : (/^0[36]/.test(digits)
+              ? digits.replace(/(\d{2})(\d{4})(\d{4})/,"$1-$2-$3")
+              : digits.replace(/(\d{3})(\d{3})(\d{4})/,"$1-$2-$3"));
+      }
+      const before = line.slice(0, m.index);
+      const isFax = /fax|ファックス|ファクス|F[::]/i.test(before) || (/fax/i.test(line) && !/tel|電話/i.test(before));
+      const isMobile = /^0[789]0/.test(digits) || /携帯|mobile|cell/i.test(before);
+      if(isFax && !r.fax){ r.fax = num; }
+      else if(isMobile && !r.mobile){ r.mobile = num; }
+      else if(!r.phone){ r.phone = num; }
+      else if(!r.mobile && /^0[789]0/.test(digits)){ r.mobile = num; }
+      used[i] = true;
+    }
+  }
+  // --- 住所 ---
+  for(let i=0;i<lines.length;i++){
+    if(r.address) break;
+    let line = lines[i];
+    const pm = line.match(PREF_RE);
+    if(pm){
+      let addr = line.slice(line.indexOf(pm[0])).replace(/〒?\s*\d{3}\s*[-‐−ー]\s*\d{4}\s*/,"").trim();
+      // 次の行がビル名などの続きなら連結
+      const nxt = lines[i+1];
+      if(nxt && !used[i+1] && /(ビル|タワー|マンション|ハイツ|コーポ|号室|[0-9]+F|階)/.test(nxt) && !COMPANY_RE.test(nxt)){
+        addr += " " + nxt; used[i+1] = true;
+      }
+      r.address = addr; used[i] = true;
+    }
+  }
+  // --- 会社名 ---
+  for(let i=0;i<lines.length;i++){
+    if(used[i]) continue;
+    if(COMPANY_RE.test(lines[i]) && !r.company){
+      r.company = lines[i]; used[i] = true;
+    }
+  }
+  // --- 役職 / 部署 ---
+  for(let i=0;i<lines.length;i++){
+    if(used[i]) continue;
+    const line = lines[i];
+    if(/\d{4,}/.test(line)) continue;
+    const tw = TITLE_WORDS.find(w=>line.includes(w));
+    if(tw && !r.title && line.length <= 20){
+      // 「営業部 部長」「代表取締役 山田太郎」のような同居ケースを分解
+      const idx = line.indexOf(tw);
+      const beforePart = line.slice(0, idx).trim();
+      const afterPart = line.slice(idx + tw.length).trim();
+      r.title = tw;
+      if(beforePart && DEPT_RE.test(beforePart) && !r.dept){ r.dept = beforePart; }
+      if(afterPart && /^[一-龥々]{1,4}\s*[一-龥々ぁ-んァ-ヶ]{0,5}$/.test(afterPart)){
+        lines[i] = afterPart;           // 役職の後ろは氏名候補として残す
+        used[i] = false;
+      }else{
+        if(afterPart) r.title = (tw + " " + afterPart).trim();
+        used[i] = true;
+      }
+      continue;
+    }
+    if(DEPT_RE.test(line) && !r.dept && line.length <= 20){
+      r.dept = line; used[i] = true;
+    }
+  }
+  // --- ふりがな ---
+  for(let i=0;i<lines.length;i++){
+    if(used[i]) continue;
+    if(/^[ぁ-んァ-ヶー・\s]{3,25}$/.test(lines[i]) && lines[i].replace(/\s/g,"").length>=3){
+      r.kana = lines[i]; used[i] = true; break;
+    }
+  }
+  // --- 氏名 ---
+  let best = -1, bestScore = -1;
+  for(let i=0;i<lines.length;i++){
+    if(used[i]) continue;
+    const line = lines[i];
+    if(line.length < 2 || line.length > 12) continue;
+    if(/[0-9@:/]/.test(line)) continue;
+    let score = 0;
+    if(/^[一-龥々]{1,4}\s+[一-龥々ぁ-んァ-ヶ]{1,5}$/.test(line)) score += 10;       // 姓 名(漢字)
+    else if(/^[一-龥々]{2,5}$/.test(line)) score += 5;                                // 漢字のみ
+    else if(/^[A-Za-z]+\s+[A-Za-z]+$/.test(line)) score += 4;                          // 英字フルネーム
+    if(i < lines.length/2) score += 1;                                                 // 上半分にあることが多い
+    if(score > bestScore && score > 0){ bestScore = score; best = i; }
+  }
+  if(best >= 0){ r.name = lines[best]; used[best] = true; }
+  return r;
+}
+
+/* ---------- 画像前処理(グレースケール+拡大縮小) ---------- */
+function preprocessImage(file){
+  return new Promise((resolve,reject)=>{
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = ()=>{
+      const maxW = 1600;
+      const w = Math.round(img.width * (img.width>maxW ? maxW/img.width : (img.width<700 ? 700/img.width : 1)));
+      const h = Math.round(img.height * (w/img.width));
+      const cv = document.createElement("canvas");
+      cv.width = w; cv.height = h;
+      const ctx = cv.getContext("2d");
+      ctx.drawImage(img, 0, 0, w, h);
+      const d = ctx.getImageData(0,0,w,h);
+      const px = d.data;
+      for(let i=0;i<px.length;i+=4){
+        let g = px[i]*0.299 + px[i+1]*0.587 + px[i+2]*0.114;
+        g = (g - 128) * 1.25 + 128;              // コントラスト強調
+        g = Math.max(0, Math.min(255, g));
+        px[i]=px[i+1]=px[i+2]=g;
+      }
+      ctx.putImageData(d,0,0);
+      URL.revokeObjectURL(url);
+      cv.toBlob(b=>resolve(b), "image/png");
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+/* ---------- OCR実行 ---------- */
+async function runOCR(){
+  if(!currentImageBlob){ toast("先に画像を選択してください"); return; }
+  if(typeof Tesseract === "undefined"){
+    toast("OCRライブラリを読み込めませんでした。通信環境をご確認ください");
+    return;
+  }
+  $("#progressWrap").classList.remove("hidden");
+  $("#ocrBtn").disabled = true;
+  const fill = $("#progressFill"), ptext = $("#progressText");
+  fill.style.width = "3%"; ptext.textContent = "画像を準備中...";
+  try{
+    const pre = await preprocessImage(currentImageBlob).catch(()=>currentImageBlob);
+    const result = await Tesseract.recognize(pre, "jpn+eng", {
+      logger: m=>{
+        if(m.status === "recognizing text"){
+          const p = Math.round(m.progress*100);
+          fill.style.width = (20 + p*0.8) + "%";
+          ptext.textContent = `文字を認識中... ${p}%`;
+        }else{
+          fill.style.width = "15%";
+          ptext.textContent = "認識エンジンを準備中...(初回は時間がかかります)";
+        }
+      }
+    });
+    fill.style.width = "100%"; ptext.textContent = "完了!";
+    const raw = (result && result.data && result.data.text) ? result.data.text : "";
+    $("#rawText").textContent = raw || "(テキストを検出できませんでした)";
+    $("#rawDetails").classList.remove("hidden");
+    const parsed = parseOCR(raw);
+    fillForm(parsed);
+    $("#formBox").classList.remove("hidden");
+    $("#formBox").scrollIntoView({behavior:"smooth"});
+    toast("読み取り完了!内容を確認してください");
+  }catch(err){
+    console.error(err);
+    ptext.textContent = "読み取りに失敗しました";
+    toast("OCRに失敗しました。画像を変えるか、手入力をお試しください");
+  }finally{
+    $("#ocrBtn").disabled = false;
+    setTimeout(()=>$("#progressWrap").classList.add("hidden"), 1500);
+  }
+}
+
+/* ---------- フォーム ---------- */
+const FIELDS = ["name","kana","company","dept","title","phone","mobile","fax","email","url","postal","address","memo"];
+function fillForm(data){
+  $("#f_id").value = data.id || "";
+  FIELDS.forEach(f=>{ $("#f_"+f).value = data[f] || ""; });
+}
+function readForm(){
+  const o = { id: $("#f_id").value || "" };
+  FIELDS.forEach(f=>{ o[f] = $("#f_"+f).value.trim(); });
+  return o;
+}
+function resetScanUI(){
+  fillForm({});
+  $("#formBox").classList.add("hidden");
+  $("#previewWrap").classList.add("hidden");
+  $("#rawDetails").classList.add("hidden");
+  $("#rawText").textContent = "";
+  currentImageBlob = null;
+  $("#cameraInput").value = "";
+  $("#galleryInput").value = "";
+}
+
+/* ---------- 保存・削除 ---------- */
+function persistLocal(){
+  store.set(LS_CARDS, JSON.stringify(cards));
+}
+async function saveCard(){
+  const data = readForm();
+  if(!data.name){ toast("氏名を入力してください"); $("#f_name").focus(); return; }
+  const isNew = !data.id;
+  if(isNew){
+    data.id = uid();
+    data.createdAt = nowStr();
+  }else{
+    const old = cards.find(c=>c.id===data.id);
+    data.createdAt = old ? old.createdAt : nowStr();
+  }
+  data.updatedAt = nowStr();
+  const idx = cards.findIndex(c=>c.id===data.id);
+  if(idx>=0) cards[idx] = data; else cards.unshift(data);
+  persistLocal();
+  renderList();
+  if(fb.connected && fb.user){
+    try{ await userCol().doc(data.id).set(data); }
+    catch(e){ console.error(e); toast("クラウド保存に失敗(ローカルには保存済み)"); }
+  }
+  resetScanUI();
+  gotoTab("list");
+  toast(isNew ? "保存しました 📇" : "更新しました");
+}
+async function deleteCard(id){
+  const c = cards.find(x=>x.id===id);
+  if(!c) return;
+  if(!confirm(`「${c.name}」を削除しますか?`)) return;
+  cards = cards.filter(x=>x.id!==id);
+  persistLocal();
+  renderList();
+  if(fb.connected && fb.user){
+    try{ await userCol().doc(id).delete(); }
+    catch(e){ console.error(e); }
+  }
+  toast("削除しました");
+}
+function editCard(id){
+  const c = cards.find(x=>x.id===id);
+  if(!c) return;
+  resetScanUI();
+  fillForm(c);
+  $("#formBox").classList.remove("hidden");
+  gotoTab("scan");
+  $("#formBox").scrollIntoView({behavior:"smooth"});
+}
+
+/* ---------- 一覧描画 ---------- */
+function renderList(){
+  const q = $("#searchBox").value.trim().toLowerCase();
+  const list = $("#cardList");
+  const filtered = cards.filter(c=>{
+    if(!q) return true;
+    return FIELDS.some(f=>(c[f]||"").toLowerCase().includes(q));
+  });
+  $("#countLine").textContent = q
+    ? `${filtered.length}件がヒット(全${cards.length}件)`
+    : `登録: ${cards.length}件`;
+  if(filtered.length===0){
+    list.innerHTML = `<div class="empty-state"><div class="big">📇</div>${
+      cards.length===0
+        ? "まだ名刺がありません。<br>「読み取り・追加」タブから登録しましょう!"
+        : "検索条件に一致する名刺がありません"
+    }</div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(c=>{
+    const org = [c.company, c.dept, c.title].filter(Boolean).join(" / ");
+    const chips = [];
+    if(c.phone)  chips.push(`<a class="chip" href="tel:${esc(c.phone)}">☎ ${esc(c.phone)}</a>`);
+    if(c.mobile) chips.push(`<a class="chip" href="tel:${esc(c.mobile)}">📱 ${esc(c.mobile)}</a>`);
+    if(c.email)  chips.push(`<a class="chip" href="mailto:${esc(c.email)}">✉ ${esc(c.email)}</a>`);
+    const det = [];
+    if(c.fax)     det.push(`<div><b>FAX</b>${esc(c.fax)}</div>`);
+    if(c.postal || c.address) det.push(`<div><b>住所</b>${esc((c.postal?("〒"+c.postal+" "):"")+ (c.address||""))}</div>`);
+    if(c.url)     det.push(`<div><b>URL</b><a href="${esc(c.url)}" target="_blank">${esc(c.url)}</a></div>`);
+    if(c.memo)    det.push(`<div><b>メモ</b>${esc(c.memo)}</div>`);
+    det.push(`<div><b>登録</b>${esc(c.createdAt||"")}</div>`);
+    return `<div class="meishi" data-id="${esc(c.id)}">
+      <div class="m-name">${esc(c.name)}${c.kana?`<span class="m-kana">${esc(c.kana)}</span>`:""}</div>
+      ${org?`<div class="m-org">${esc(org)}</div>`:""}
+      ${chips.length?`<div class="chips">${chips.join("")}</div>`:""}
+      <div class="m-detail hidden">${det.join("")}
+        <div class="m-actions">
+          <button class="btn btn-ghost btn-sm act-edit">✏️ 編集</button>
+          <button class="btn btn-danger-ghost btn-sm act-del">🗑 削除</button>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+}
+$("#cardList").addEventListener("click", e=>{
+  const item = e.target.closest(".meishi");
+  if(!item) return;
+  const id = item.dataset.id;
+  if(e.target.closest(".act-edit")){ editCard(id); return; }
+  if(e.target.closest(".act-del")){ deleteCard(id); return; }
+  if(e.target.closest("a")) return; // tel/mailto リンクは通常動作
+  item.querySelector(".m-detail").classList.toggle("hidden");
+});
+
+/* ---------- CSV / バックアップ ---------- */
+function downloadBlob(blob, filename){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+function exportCSV(){
+  if(cards.length===0){ toast("出力する名刺がありません"); return; }
+  const headers = ["氏名","ふりがな","会社名","部署","役職","郵便番号","住所","電話番号","携帯番号","FAX","メールアドレス","URL","メモ","登録日","更新日"];
+  const keys    = ["name","kana","company","dept","title","postal","address","phone","mobile","fax","email","url","memo","createdAt","updatedAt"];
+  const q = v => `"${String(v==null?"":v).replace(/"/g,'""')}"`;
+  const rows = [headers.map(q).join(",")];
+  cards.forEach(c=>rows.push(keys.map(k=>q(c[k])).join(",")));
+  const csv = "\uFEFF" + rows.join("\r\n");   // ﻿ BOM付きでExcelの文字化け防止
+  const d = new Date();
+  const fn = `meishi_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}.csv`;
+  downloadBlob(new Blob([csv], {type:"text/csv;charset=utf-8"}), fn);
+  toast("CSVをダウンロードしました");
+}
+function exportJSON(){
+  if(cards.length===0){ toast("バックアップする名刺がありません"); return; }
+  const blob = new Blob([JSON.stringify({app:"meishi",version:1,cards}, null, 2)], {type:"application/json"});
+  downloadBlob(blob, "meishi_backup.json");
+  toast("バックアップを保存しました");
+}
+async function importJSON(file){
+  try{
+    const data = JSON.parse(await file.text());
+    const arr = Array.isArray(data) ? data : data.cards;
+    if(!Array.isArray(arr)) throw new Error("format");
+    let added = 0;
+    for(const c of arr){
+      if(!c || !c.name) continue;
+      if(!c.id) c.id = uid();
+      const idx = cards.findIndex(x=>x.id===c.id);
+      if(idx>=0) cards[idx] = c; else { cards.push(c); }
+      added++;
+      if(fb.connected && fb.user){
+        try{ await userCol().doc(c.id).set(c); }catch(e){}
+      }
+    }
+    persistLocal();
+    renderList();
+    toast(`${added}件を読み込みました`);
+  }catch(e){
+    toast("読み込みに失敗しました(ファイル形式を確認してください)");
+  }
+}
+
+/* =====================================================
+   Firebase 同期
+===================================================== */
+function setSyncBadge(state, text){
+  const b = $("#syncBadge");
+  b.classList.remove("on","err");
+  if(state==="on") b.classList.add("on");
+  if(state==="err") b.classList.add("err");
+  $("#syncText").textContent = text;
+}
+function setFbStatus(cls, text){
+  const el = $("#fbStatus");
+  el.className = "status-line" + (cls ? " "+cls : "");
+  el.textContent = text;
+}
+function parseFbConfig(text){
+  if(!text) return null;
+  let t = text.trim();
+  // "const firebaseConfig = {...};" 形式から {...} を抜き出す
+  const m = t.match(/\{[\s\S]*\}/);
+  if(m) t = m[0];
+  try{ return JSON.parse(t); }catch(e){}
+  try{ return (new Function("return (" + t + ")"))(); }catch(e){}
+  return null;
+}
+function loadFirebaseSDK(){
+  if(window.firebase && firebase.firestore) return Promise.resolve();
+  const urls = [
+    "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js",
+    "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js",
+    "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"
+  ];
+  return urls.reduce((p,u)=>p.then(()=>new Promise((res,rej)=>{
+    const s = document.createElement("script");
+    s.src = u; s.onload = res; s.onerror = ()=>rej(new Error("SDK読込失敗: "+u));
+    document.head.appendChild(s);
+  })), Promise.resolve());
+}
+function userCol(){
+  return fb.db.collection("users").doc(fb.user.uid).collection("cards");
+}
+async function connectFirebase(cfg, silent){
+  try{
+    setFbStatus("", "接続中...");
+    await loadFirebaseSDK();
+    if(!fb.app){
+      fb.app = firebase.initializeApp(cfg);
+    }
+    fb.db = firebase.firestore();
+    fb.auth = firebase.auth();
+    store.set(LS_FBCFG, JSON.stringify(cfg));
+    $("#loginBox").classList.remove("hidden");
+    if(!fb.authWatch){
+      fb.authWatch = true;
+      fb.auth.onAuthStateChanged(user=>{
+        fb.user = user;
+        if(user){
+          $("#authForms").classList.add("hidden");
+          $("#logoutRow").classList.remove("hidden");
+          $("#loginState").textContent = "ログイン中: " + (user.email || "");
+          startSync(silent);
+        }else{
+          stopSync();
+          $("#authForms").classList.remove("hidden");
+          $("#logoutRow").classList.add("hidden");
+          $("#loginState").textContent = "";
+          setSyncBadge("", "未ログイン");
+          setFbStatus("", "接続OK。下のフォームでログイン(初回は新規登録)すると同期が始まります。");
+        }
+      });
+    }
+    if(!silent) toast("Firebaseに接続しました");
+  }catch(err){
+    console.error(err);
+    fb.connected = false;
+    setSyncBadge("err","接続エラー");
+    setFbStatus("err","接続に失敗しました: " + (err.message||err) + " — 構成の内容をご確認ください。");
+    if(!silent) toast("接続に失敗しました");
+  }
+}
+async function startSync(silent){
+  try{
+    const col = userCol();
+    // ローカルにしかない名刺をアップロード
+    const snap = await col.limit(1000).get();
+    const serverIds = new Set();
+    snap.forEach(doc=>serverIds.add(doc.id));
+    for(const c of cards){
+      if(!serverIds.has(c.id)){
+        try{ await col.doc(c.id).set(c); }catch(e){}
+      }
+    }
+    // リアルタイム購読
+    if(fb.unsub) fb.unsub();
+    fb.unsub = col.onSnapshot(s=>{
+      const arr = [];
+      s.forEach(doc=>{ const d = doc.data(); if(d && d.name) arr.push(d); });
+      arr.sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
+      cards = arr;
+      persistLocal();
+      renderList();
+      setSyncBadge("on","クラウド同期中");
+    }, err=>{
+      console.error(err);
+      setSyncBadge("err","同期エラー");
+      setFbStatus("err","同期エラー: " + err.message + "(Firestoreのルール設定をご確認ください)");
+    });
+    fb.connected = true;
+    setSyncBadge("on","クラウド同期中");
+    setFbStatus("ok","✅ ログイン済み。あなた専用の領域に安全に同期されています。");
+    if(!silent) toast("クラウド同期を開始しました ☁️");
+  }catch(err){
+    console.error(err);
+    fb.connected = false;
+    setSyncBadge("err","同期エラー");
+    setFbStatus("err","同期を開始できませんでした: " + (err.message||err) + " — Firestoreの作成とルール設定をご確認ください。");
+  }
+}
+function stopSync(){
+  if(fb.unsub){ fb.unsub(); fb.unsub = null; }
+  fb.connected = false;
+}
+async function doAuth(isSignup){
+  if(!fb.auth){ toast("先にFirebaseに接続してください"); return; }
+  const email = $("#authEmail").value.trim();
+  const pass = $("#authPass").value;
+  if(!email || pass.length < 6){
+    toast("メールアドレスと6文字以上のパスワードを入力してください");
+    return;
+  }
+  try{
+    if(isSignup) await fb.auth.createUserWithEmailAndPassword(email, pass);
+    else await fb.auth.signInWithEmailAndPassword(email, pass);
+    $("#authPass").value = "";
+  }catch(e){
+    const msgs = {
+      "auth/user-not-found": "アカウントが見つかりません。初回は「新規登録」を押してください",
+      "auth/wrong-password": "パスワードが違います",
+      "auth/invalid-credential": "メールまたはパスワードが違います(初回は「新規登録」)",
+      "auth/email-already-in-use": "既に登録済みのメールです。「ログイン」を押してください",
+      "auth/weak-password": "パスワードは6文字以上にしてください",
+      "auth/invalid-email": "メールアドレスの形式が正しくありません",
+      "auth/operation-not-allowed": "Firebaseコンソールで「メール/パスワード」ログインを有効にしてください(手順2)",
+      "auth/too-many-requests": "試行回数が多すぎます。しばらく待ってからお試しください"
+    };
+    setFbStatus("err","ログインエラー: " + (msgs[e.code] || e.message));
+  }
+}
+function disconnectFirebase(){
+  stopSync();
+  if(fb.auth){ try{ fb.auth.signOut(); }catch(e){} }
+  store.del(LS_FBCFG);
+  $("#loginBox").classList.add("hidden");
+  setSyncBadge("", "ローカル保存");
+  setFbStatus("", "切断しました(この端末のみに保存されます)");
+  toast("同期を停止しました");
+}
+
+/* =====================================================
+   イベント登録 & 初期化
+===================================================== */
+$("#cameraBtn").addEventListener("click", ()=>$("#cameraInput").click());
+$("#galleryBtn").addEventListener("click", ()=>$("#galleryInput").click());
+function onImagePicked(e){
+  const f = e.target.files && e.target.files[0];
+  if(!f) return;
+  currentImageBlob = f;
+  $("#previewImg").src = URL.createObjectURL(f);
+  $("#previewWrap").classList.remove("hidden");
+  $("#formBox").classList.add("hidden");
+  $("#rawDetails").classList.add("hidden");
+}
+$("#cameraInput").addEventListener("change", onImagePicked);
+$("#galleryInput").addEventListener("change", onImagePicked);
+$("#ocrBtn").addEventListener("click", runOCR);
+$("#manualBtn").addEventListener("click", ()=>{
+  resetScanUI();
+  $("#formBox").classList.remove("hidden");
+  $("#formBox").scrollIntoView({behavior:"smooth"});
+});
+$("#saveBtn").addEventListener("click", saveCard);
+$("#cancelBtn").addEventListener("click", ()=>{ resetScanUI(); gotoTab("list"); });
+$("#searchBox").addEventListener("input", renderList);
+$("#csvBtn").addEventListener("click", exportCSV);
+$("#jsonExportBtn").addEventListener("click", exportJSON);
+$("#jsonImportBtn").addEventListener("click", ()=>$("#jsonImportFile").click());
+$("#jsonImportFile").addEventListener("change", e=>{
+  const f = e.target.files && e.target.files[0];
+  if(f) importJSON(f);
+  e.target.value = "";
+});
+$("#fbConnectBtn").addEventListener("click", ()=>{
+  const cfg = parseFbConfig($("#fbConfig").value);
+  if(!cfg || !cfg.projectId){
+    setFbStatus("err","構成を読み取れませんでした。firebaseConfig の {...} 部分を貼り付けてください。");
+    return;
+  }
+  connectFirebase(cfg, false);
+});
+$("#fbDisconnectBtn").addEventListener("click", disconnectFirebase);
+$("#loginBtn").addEventListener("click", ()=>doAuth(false));
+$("#signupBtn").addEventListener("click", ()=>doAuth(true));
+$("#logoutBtn").addEventListener("click", ()=>{ if(fb.auth) fb.auth.signOut(); toast("ログアウトしました"); });
+
+/* ---------- PWA: Service Worker登録(https配信時のみ) ---------- */
+if("serviceWorker" in navigator && location.protocol === "https:"){
+  window.addEventListener("load", ()=>{
+    navigator.serviceWorker.register("./sw.js").catch(()=>{});
+  });
+}
+
+(function init(){
+  // ローカルデータ読み込み
+  try{
+    const saved = store.get(LS_CARDS);
+    if(saved) cards = JSON.parse(saved) || [];
+  }catch(e){ cards = []; }
+  renderList();
+  // 保存済みFirebase構成があれば自動接続
+  const cfgRaw = store.get(LS_FBCFG);
+  if(cfgRaw){
+    try{
+      const cfg = JSON.parse(cfgRaw);
+      $("#fbConfig").value = JSON.stringify(cfg, null, 2);
+      connectFirebase(cfg, true);
+    }catch(e){}
+  }
+})();
+</script>
+</body>
+</html>
