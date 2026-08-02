@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="名刺管理">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js"></script>
 <style>
 :root{
   --primary:#3b5bdb;
@@ -137,6 +137,72 @@ label.fld.filled span::after{content:" ✓ 読取";color:var(--accent);font-size
   border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;flex:none;font-family:inherit;
 }
 .batch-tools{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+
+/* ---------- 検索モード切替 ---------- */
+.mode-tabs{display:flex;gap:4px;background:#e8ecf6;border-radius:11px;padding:3px;margin-bottom:10px}
+.mode-tabs button{
+  flex:1;border:none;background:transparent;color:var(--text-sub);
+  padding:8px 4px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;
+  font-family:inherit;transition:.15s;white-space:nowrap;
+}
+.mode-tabs button.active{background:#fff;color:var(--primary-dark);box-shadow:0 1px 3px rgba(30,40,80,.12)}
+.sort-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.sort-row label{font-size:12px;color:var(--text-sub);font-weight:600;white-space:nowrap}
+.sort-row select{
+  flex:1;border:1.5px solid var(--border);border-radius:9px;padding:8px 10px;
+  font-size:13.5px;font-family:inherit;background:#fff;color:var(--text);
+}
+.tag-filter{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px}
+.tag-filter button{
+  border:1.5px solid var(--border);background:#fff;color:var(--text-sub);
+  border-radius:999px;padding:6px 13px;font-size:12.5px;font-weight:600;
+  cursor:pointer;font-family:inherit;transition:.15s;
+}
+.tag-filter button.on{background:#f3f0ff;border-color:#b197fc;color:#5f3dc4}
+.tag-empty{font-size:12.5px;color:var(--text-sub);padding:6px 2px}
+
+/* ---------- 五十音バー(電話帳風) ---------- */
+.list-wrap{display:flex;gap:8px;align-items:flex-start}
+.kana-rail{
+  flex:none;width:30px;position:sticky;top:118px;
+  display:flex;flex-direction:column;gap:2px;
+  background:rgba(255,255,255,.85);border-radius:10px;padding:4px 2px;
+  box-shadow:var(--shadow);backdrop-filter:blur(4px);
+}
+.kana-rail button{
+  border:none;background:transparent;color:var(--primary-dark);
+  font-size:12.5px;font-weight:700;padding:4px 0;border-radius:6px;
+  cursor:pointer;font-family:inherit;line-height:1.1;
+}
+.kana-rail button.on{background:var(--primary);color:#fff}
+.kana-rail button.dim{color:#c3c9d8}
+.list-body{flex:1;min-width:0}
+
+/* ---------- 一覧のサムネイル ---------- */
+.meishi{display:flex;gap:11px;align-items:flex-start}
+.m-main{flex:1;min-width:0}
+.m-thumb{
+  flex:none;width:74px;height:48px;border-radius:7px;overflow:hidden;
+  background:#eef1f7;border:1px solid var(--border);cursor:zoom-in;
+}
+.m-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.m-noimg{
+  flex:none;width:74px;height:48px;border-radius:7px;border:1px dashed var(--border);
+  display:flex;align-items:center;justify-content:center;color:#c3c9d8;font-size:17px;
+}
+
+/* ---------- 画像ビューア ---------- */
+#imgViewer{
+  position:fixed;inset:0;background:rgba(12,16,30,.9);z-index:200;
+  display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;padding:18px;
+}
+#imgViewer.show{display:flex}
+#imgViewer img{max-width:100%;max-height:76vh;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+#imgViewer .vtitle{color:#fff;font-size:14px;font-weight:600;text-align:center}
+#imgViewer .vclose{
+  border:none;background:#fff;color:var(--text);border-radius:10px;
+  padding:10px 22px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;
+}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .muted{color:var(--text-sub);font-size:12.5px}
 .hidden{display:none!important}
@@ -228,10 +294,36 @@ pre.code-block{
   <main>
     <!-- ============ 一覧 ============ -->
     <section class="tab show" id="tab-list">
-      <div class="search-wrap">
-        <span class="ico">🔍</span>
-        <input type="text" id="searchBox" placeholder="名前・会社・電話・メールで検索">
+      <div class="mode-tabs" id="modeTabs">
+        <button type="button" data-mode="keyword" class="active">🔍 キーワード</button>
+        <button type="button" data-mode="tag">🏷 タグ</button>
+        <button type="button" data-mode="kana">あ 五十音</button>
       </div>
+
+      <div id="modeKeyword">
+        <div class="search-wrap">
+          <span class="ico">🔍</span>
+          <input type="text" id="searchBox" placeholder="名前・会社・電話・メールで検索">
+        </div>
+      </div>
+      <div id="modeTag" class="hidden">
+        <div class="tag-filter" id="tagFilter"></div>
+      </div>
+      <div id="modeKana" class="hidden">
+        <p class="muted" style="margin-bottom:8px">左のバーで頭文字をえらぶと、その行の人だけ表示されます。</p>
+      </div>
+
+      <div class="sort-row">
+        <label for="sortSel">並び順</label>
+        <select id="sortSel">
+          <option value="new">登録が新しい順</option>
+          <option value="old">登録が古い順</option>
+          <option value="kana">五十音順(あ→ん)</option>
+          <option value="company">会社名順</option>
+          <option value="updated">更新が新しい順</option>
+        </select>
+      </div>
+
       <div class="toolbar">
         <button class="btn btn-accent btn-sm" id="csvBtn">📄 CSV出力</button>
         <button class="btn btn-ghost btn-sm" id="jsonExportBtn">💾 バックアップ</button>
@@ -239,7 +331,11 @@ pre.code-block{
         <input type="file" id="jsonImportFile" accept=".json,application/json" class="hidden">
       </div>
       <div class="count-line" id="countLine"></div>
-      <div id="cardList"></div>
+
+      <div class="list-wrap">
+        <div class="kana-rail hidden" id="kanaRail"></div>
+        <div class="list-body"><div id="cardList"></div></div>
+      </div>
     </section>
 
     <!-- ============ 読み取り・追加 ============ -->
@@ -425,6 +521,11 @@ service cloud.firestore {
     </section>
   </main>
 </div>
+<div id="imgViewer">
+  <div class="vtitle" id="viewerTitle"></div>
+  <img id="viewerImg" alt="名刺画像">
+  <button type="button" class="vclose" id="viewerClose">閉じる</button>
+</div>
 <div id="toast"></div>
 <script>
 "use strict";
@@ -466,6 +567,76 @@ const LS_AIKEY = "meishi_ai_key_v1";
 const LS_AIMODEL = "meishi_ai_model_v1";
 const LS_AICLEARED = "meishi_ai_cleared_v1";
 const LS_FBCLEARED = "meishi_fb_cleared_v1";
+const LS_NOTHINKCFG = "meishi_ai_nothinkcfg_v1";   // thinking設定が使えないAPIだった場合の記録
+const LS_VIEW = "meishi_view_v1";                  // 検索モード・並び順の記憶
+
+/* =====================================================
+   名刺画像の保管(IndexedDB)
+   画像はlocalStorageに入れるとすぐ容量が足りなくなるため、
+   本文とは分けてIndexedDBへ保存する。
+===================================================== */
+const IDB_NAME = "meishi_images_v1", IDB_STORE = "images";
+let idbPromise = null;
+function idbOpen(){
+  if(idbPromise) return idbPromise;
+  idbPromise = new Promise((res)=>{
+    let settled = false;
+    const done = v=>{
+      if(settled) return;
+      settled = true;
+      // 開けなかった時は覚え込まず、次回また試せるようにする
+      if(!v) idbPromise = null;
+      res(v);
+    };
+    try{
+      if(!window.indexedDB) return done(null);
+      const req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = ()=>{
+        const db = req.result;
+        if(!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
+      };
+      req.onsuccess = ()=>done(req.result);
+      req.onerror = req.onblocked = ()=>done(null);
+      setTimeout(()=>done(null), 8000);
+    }catch(e){ done(null); }
+  });
+  return idbPromise;
+}
+async function idbSet(id, dataUrl){
+  const db = await idbOpen(); if(!db) return false;
+  return new Promise(res=>{
+    try{
+      const tx = db.transaction(IDB_STORE, "readwrite");
+      tx.objectStore(IDB_STORE).put(dataUrl, id);
+      tx.oncomplete = ()=>res(true);
+      tx.onerror = tx.onabort = ()=>res(false);
+    }catch(e){ res(false); }
+  });
+}
+async function idbDel(id){
+  const db = await idbOpen(); if(!db) return;
+  try{
+    const tx = db.transaction(IDB_STORE, "readwrite");
+    tx.objectStore(IDB_STORE).delete(id);
+  }catch(e){}
+}
+async function idbAll(){
+  const db = await idbOpen(); if(!db) return {};
+  return new Promise(res=>{
+    const out = {};
+    try{
+      const tx = db.transaction(IDB_STORE, "readonly");
+      const st = tx.objectStore(IDB_STORE);
+      const req = st.openCursor();
+      req.onsuccess = ()=>{
+        const c = req.result;
+        if(c){ out[c.key] = c.value; c.continue(); }
+        else res(out);
+      };
+      req.onerror = ()=>res(out);
+    }catch(e){ res(out); }
+  });
+}
 
 /* ---------- state ---------- */
 let cards = [];            // {id,name,kana,company,dept,title,phone,mobile,fax,email,url,postal,address,memo,createdAt,updatedAt}
@@ -474,6 +645,11 @@ let currentImageBlob = null;    // 単数処理の互換用(先頭の画像)
 let pickedImages = [];          // 読み取り対象の画像(複数可)
 let batchResults = [];          // 一括読み取りの結果
 let batchEditIndex = -1;        // 一括結果を編集中のindex
+let pendingImage = null;        // 単票フォームで保存待ちの名刺画像(dataURL)
+let searchMode = "keyword";     // keyword | tag | kana
+let selectedTags = [];
+let kanaRow = "";               // 選択中の五十音の行
+let sortBy = "new";
 
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
@@ -690,10 +866,19 @@ const AI_CARD_SCHEMA = {
   required: Object.keys(AI_FIELD_DESC)
 };
 const AI_SCHEMA = AI_CARD_SCHEMA;
-/* 複数枚・動画フレーム用: 名刺の配列で返させる */
+/* 複数枚・動画フレーム用: 名刺の配列で返させる。
+   どの画像に写っていたかも返させて、保存する名刺画像を正しく紐づける。 */
+const AI_CARD_SCHEMA_SRC = {
+  type:"object",
+  properties: Object.assign(
+    Object.fromEntries(Object.keys(AI_FIELD_DESC).map(k=>[k,{type:"string"}])),
+    { sourceImage:{ type:"integer" } }
+  ),
+  required: Object.keys(AI_FIELD_DESC).concat(["sourceImage"])
+};
 const AI_MULTI_SCHEMA = {
   type:"object",
-  properties:{ cards:{ type:"array", items: AI_CARD_SCHEMA } },
+  properties:{ cards:{ type:"array", items: AI_CARD_SCHEMA_SRC } },
   required:["cards"]
 };
 const AI_MULTI_PROMPT = `あなたは名刺情報を正確に読み取る専門家です。渡された画像(複数枚の写真、または動画から切り出したコマ)に写っている名刺をすべて読み取り、JSONで返してください。
@@ -702,6 +887,7 @@ const AI_MULTI_PROMPT = `あなたは名刺情報を正確に読み取る専門�
 
 各名刺の項目:
 ${Object.entries(AI_FIELD_DESC).map(([k,v])=>`- ${k}: ${v}`).join("\n")}
+- sourceImage: その名刺が最もはっきり写っている画像の番号(1枚目なら1、2枚目なら2)。必ず数値で答えること。
 
 重要なルール:
 - 同じ名刺が複数の画像やコマに写っている場合は、1件にまとめること(重複させない)。最も鮮明に写っているものを採用する。
@@ -741,11 +927,26 @@ function blobToBase64(blob){
   });
 }
 
+/* 思考(thinking)モードを切る設定。既定で有効なモデルが多く、これが待ち時間の主因になる。
+   モデル世代でキー名が違うため、名前から判断しつつ、拒否されたら自動で外す。 */
+function thinkingConfigFor(model){
+  if(store.get(LS_NOTHINKCFG)) return null;        // 過去に拒否されていれば付けない
+  const m = String(model||"");
+  if(/(^|[^\d])[12]\.\d|2\.5|2\.0/.test(m)) return { thinkingBudget: 0 };
+  return { thinkingLevel: "minimal" };            // 3.x系・latest系
+}
+function isThinkingConfigError(msg){
+  return /thinking(Budget|Level|Config)|thinking_budget|thinking_level/i.test(String(msg||""));
+}
+
 /* Geminiは新旧2系統のリクエスト形式があるため、順に試して通った方を使う */
 /* images: [{b64, mime}, ...] 複数枚を1リクエストにまとめられる */
 function buildGeminiRequests(model, images, prompt, schema){
   const base = "https://generativelanguage.googleapis.com/v1beta";
   const sc = schema || AI_CARD_SCHEMA;
+  const think = thinkingConfigFor(model);
+  const genCfg = { responseMimeType:"application/json", responseSchema:sc, temperature:0 };
+  if(think) genCfg.thinkingConfig = think;
   return [
     {
       label: "generateContent",
@@ -755,20 +956,20 @@ function buildGeminiRequests(model, images, prompt, schema){
           {text:prompt},
           ...images.map(im=>({ inline_data:{ mime_type:im.mime, data:im.b64 } }))
         ] }],
-        generationConfig: { responseMimeType:"application/json", responseSchema:sc, temperature:0 }
+        generationConfig: genCfg
       }
     },
     {
       label: "interactions",
       url: `${base}/interactions`,
-      body: {
+      body: Object.assign({
         model: model,
         input: [{ role:"user", content:[
           {type:"text", text:prompt},
           ...images.map(im=>({ type:"image", data:im.b64, mime_type:im.mime }))
         ] }],
         response_format: { type:"text", mime_type:"application/json", schema:sc }
-      }
+      }, think ? { thinking: think } : {})
     }
   ];
 }
@@ -830,6 +1031,11 @@ async function callGemini(images, prompt, onProgress, schema){
       const msg = (json && json.error && json.error.message) || txt.slice(0,200);
       // キー自体が無効なら次の形式を試しても無駄なので即終了
       if(res.status === 400 && /API key not valid|API_KEY_INVALID/i.test(msg)) throw new Error("APIキーが正しくありません。設定画面で確認してください。");
+      // thinking設定が受け付けられないAPIなら、その設定を諦めて即やり直す
+      if(res.status === 400 && isThinkingConfigError(msg) && !store.get(LS_NOTHINKCFG)){
+        store.set(LS_NOTHINKCFG, "1");
+        return callGemini(images, prompt, onProgress, schema);
+      }
       if(res.status === 403) throw new Error("APIキーが拒否されました(権限をご確認ください): " + msg);
       if(res.status === 429) throw new Error("無料枠の上限に達したようです。しばらく待ってからお試しください。");
       lastErr = `${res.status}: ${msg}`;
@@ -1019,6 +1225,14 @@ async function extractVideoFrames(file, opts, onProgress){
   }));
 }
 
+/* 読み取り結果に対応する元画像(圧縮済みdataURL)を作る */
+async function imageForCard(c){
+  const idx = (c && typeof c.__imgIdx === "number") ? c.__imgIdx : 0;
+  const src = pickedImages[idx] || pickedImages[0];
+  if(!src) return "";
+  return await makeCardImage(src.blob).catch(()=>"");
+}
+
 function cleanCard(data){
   const clean = {};
   Object.keys(AI_FIELD_DESC).forEach(k=>{
@@ -1060,19 +1274,52 @@ async function runAI(){
     const chunks = [];
     for(let i=0;i<prepared.length;i+=AI_BATCH_SIZE) chunks.push(prepared.slice(i, i+AI_BATCH_SIZE));
 
+    // 経過秒数を出して「止まっていない」ことが分かるようにする
+    const t0 = Date.now();
+    let finished = 0;
+    const tick = setInterval(()=>{
+      const sec = Math.round((Date.now()-t0)/1000);
+      ptext.textContent = chunks.length > 1
+        ? `AIが読み取っています... (${finished}/${chunks.length}組 完了・${sec}秒)`
+        : `AIが名刺を読み取っています... (${sec}秒)`;
+    }, 300);
+
     let cards = [];
     const raws = [];
-    for(let ci=0; ci<chunks.length; ci++){
-      ptext.textContent = chunks.length > 1
-        ? `AIが読み取っています... (${ci+1}/${chunks.length}組)`
-        : "AIが名刺を読み取っています...";
-      const data = await callGemini(chunks[ci], AI_MULTI_PROMPT, null, AI_MULTI_SCHEMA);
-      raws.push(data);
-      const arr = Array.isArray(data && data.cards) ? data.cards
-                : (data && typeof data === "object" && (data.name || data.company)) ? [data]   // 単体で返ってきた場合の保険
-                : [];
-      cards.push(...arr.map(cleanCard));
-      fill.style.width = (20 + 75*(ci+1)/chunks.length) + "%";
+    try{
+      // 複数組ある場合は並列で投げる(順番待ちしない分だけ速くなる)
+      const settled = await Promise.all(chunks.map(ch=>
+        callGemini(ch, AI_MULTI_PROMPT, null, AI_MULTI_SCHEMA)
+          .then(d=>({ ok:true, d }))
+          .catch(e=>({ ok:false, e }))
+          .then(r=>{
+            finished++;
+            fill.style.width = (20 + 75*finished/chunks.length) + "%";
+            return r;
+          })
+      ));
+      const firstErr = settled.find(r=>!r.ok);
+      if(firstErr && settled.every(r=>!r.ok)) throw firstErr.e;   // 全滅した時だけエラー扱い
+      settled.forEach((r, ci)=>{
+        if(!r.ok) return;
+        const data = r.d;
+        raws.push(data);
+        const arr = Array.isArray(data && data.cards) ? data.cards
+                  : (data && typeof data === "object" && (data.name || data.company)) ? [data]   // 単体で返ってきた場合の保険
+                  : [];
+        const offset = ci * AI_BATCH_SIZE;
+        arr.forEach(raw=>{
+          const c = cleanCard(raw);
+          // AIが答えた画像番号から、元の画像を特定する
+          let si = parseInt(raw && raw.sourceImage, 10);
+          si = (isFinite(si) && si >= 1 && si <= chunks[ci].length) ? offset + si - 1 : offset;
+          c.__imgIdx = si;
+          cards.push(c);
+        });
+      });
+      if(firstErr) toast("一部の画像は読み取れませんでした");
+    }finally{
+      clearInterval(tick);
     }
 
     cards = cards.filter(isMeaningfulCard);
@@ -1091,6 +1338,7 @@ async function runAI(){
     if(cards.length === 1){
       // 1件なら従来どおり編集フォームで確認
       $("#batchBox").classList.add("hidden");
+      pendingImage = await imageForCard(cards[0]);
       fillForm(cards[0], true, true);
       $("#formBox").classList.remove("hidden");
       $("#formBox").scrollIntoView({behavior:"smooth"});
@@ -1209,9 +1457,13 @@ async function saveBatch(){
   let saved = 0;
   for(const b of picks){
     const data = Object.assign({}, b.card);
+    const imgIdx = data.__imgIdx;
+    delete data.__imgIdx;
     data.id = uid();
     data.createdAt = nowStr();
     data.updatedAt = data.createdAt;
+    const img = await imageForCard({ __imgIdx: imgIdx });
+    if(img) await attachImage(data, img);
     cards.unshift(data);
     saved++;
   }
@@ -1230,20 +1482,20 @@ async function saveBatch(){
   toast(`${saved}件を保存しました 📇`);
 }
 
-/* AI送信用に長辺1280pxへ縮小(通信量と無料枠の節約) */
+/* AI送信用に縮小(通信量と待ち時間の削減。文字が読める範囲でなるべく小さく) */
 function shrinkForAI(file){
   return new Promise((resolve,reject)=>{
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = ()=>{
-      const max = 1280;
+      const max = 1024;
       const scale = Math.min(1, max/Math.max(img.width, img.height));
       const w = Math.round(img.width*scale), h = Math.round(img.height*scale);
       const cv = document.createElement("canvas");
       cv.width = w; cv.height = h;
       cv.getContext("2d").drawImage(img, 0, 0, w, h);
       URL.revokeObjectURL(url);
-      cv.toBlob(b=>resolve(b || file), "image/jpeg", 0.9);
+      cv.toBlob(b=>resolve(b || file), "image/jpeg", 0.85);
     };
     img.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error("画像を読み込めません")); };
     img.src = url;
@@ -1300,34 +1552,100 @@ function clearAiKey(){
   toast("APIキーを削除しました");
 }
 
-/* ---------- 画像前処理(グレースケール+拡大縮小) ---------- */
+/* ---------- 画像前処理 ----------
+   実測して決めた構成:
+     長辺1400px前後にそろえる + グレースケール + ゆるいレベル補正
+   ※白黒2値化は試したが、名刺の大きな文字(氏名)が崩れて読めなくなるため採用していない。 */
 function preprocessImage(file){
   return new Promise((resolve,reject)=>{
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = ()=>{
-      const maxW = 1600;
-      const w = Math.round(img.width * (img.width>maxW ? maxW/img.width : (img.width<700 ? 700/img.width : 1)));
-      const h = Math.round(img.height * (w/img.width));
+      const target = 1400, longSide = Math.max(img.width, img.height);
+      let scale = target / longSide;
+      scale = Math.max(0.4, Math.min(scale, 2.5));      // 極端な拡縮は避ける
+      const w = Math.max(2, Math.round(img.width*scale));
+      const h = Math.max(2, Math.round(img.height*scale));
+
       const cv = document.createElement("canvas");
       cv.width = w; cv.height = h;
-      const ctx = cv.getContext("2d");
+      const ctx = cv.getContext("2d", { willReadFrequently:true });
+      ctx.imageSmoothingQuality = "high";
       ctx.drawImage(img, 0, 0, w, h);
-      const d = ctx.getImageData(0,0,w,h);
-      const px = d.data;
-      for(let i=0;i<px.length;i+=4){
-        let g = px[i]*0.299 + px[i+1]*0.587 + px[i+2]*0.114;
-        g = (g - 128) * 1.25 + 128;              // コントラスト強調
-        g = Math.max(0, Math.min(255, g));
-        px[i]=px[i+1]=px[i+2]=g;
-      }
-      ctx.putImageData(d,0,0);
       URL.revokeObjectURL(url);
+
+      const imgData = ctx.getImageData(0,0,w,h);
+      const px = imgData.data;
+      const gray = new Float32Array(w*h);
+      const hist = new Uint32Array(256);
+      for(let i=0, p=0; i<px.length; i+=4, p++){
+        const g = px[i]*0.299 + px[i+1]*0.587 + px[i+2]*0.114;
+        gray[p] = g;
+        hist[g|0]++;
+      }
+      // 上下2%を切り捨てて明暗を伸ばす(暗い写真や薄い印字に効く)
+      const n = gray.length, cut = n*0.02;
+      let acc = 0, lo = 0, hi = 255;
+      for(let v=0; v<256; v++){ acc += hist[v]; if(acc > cut){ lo = v; break; } }
+      acc = 0;
+      for(let v=255; v>=0; v--){ acc += hist[v]; if(acc > cut){ hi = v; break; } }
+      const range = Math.max(24, hi - lo);            // 差が小さすぎる時は伸ばしすぎない
+      for(let i=0, p=0; i<px.length; i+=4, p++){
+        let v = (gray[p] - lo) / range * 255;
+        v = v < 0 ? 0 : v > 255 ? 255 : v;
+        px[i] = px[i+1] = px[i+2] = v; px[i+3] = 255;
+      }
+      ctx.putImageData(imgData,0,0);
       cv.toBlob(b=>resolve(b), "image/png");
     };
-    img.onerror = reject;
+    img.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error("画像を読み込めません")); };
     img.src = url;
   });
+}
+
+/* ---------- Tesseractワーカーの使い回し ----------
+   毎回起動し直すと初期化に十数秒かかるため、一度作ったら保持する。 */
+let ocrWorker = null, ocrWorkerPromise = null;
+let ocrProgressCb = null;    // 進捗表示用(認識中も呼ばれる)
+async function getOcrWorker(onStatus){
+  if(ocrWorker) return ocrWorker;
+  if(ocrWorkerPromise) return ocrWorkerPromise;
+  ocrWorkerPromise = (async ()=>{
+    const logger = m=>{
+      if(!m || !m.status) return;
+      if(ocrProgressCb) ocrProgressCb(m);
+      else if(onStatus && m.status !== "recognizing text") onStatus(m);
+    };
+    let w;
+    if(typeof Tesseract.createWorker === "function"){
+      try{
+        w = await Tesseract.createWorker("jpn+eng", 1, { logger });
+      }catch(e){
+        // 旧APIの場合(念のため)
+        w = await Tesseract.createWorker({ logger });
+        if(w.loadLanguage){ await w.loadLanguage("jpn+eng"); await w.initialize("jpn+eng"); }
+      }
+    }else{
+      throw new Error("OCRライブラリを利用できません");
+    }
+    if(w.setParameters){
+      try{
+        await w.setParameters({
+          preserve_interword_spaces: "1",
+          user_defined_dpi: "300",          // DPI不明による精度低下を防ぐ
+          tessedit_pageseg_mode: "3"        // 自動レイアウト解析。実測でこれが名刺に最適だった
+        });
+      }catch(e){}
+    }
+    ocrWorker = w;
+    return w;
+  })();
+  try{
+    return await ocrWorkerPromise;
+  }catch(e){
+    ocrWorkerPromise = null;
+    throw e;
+  }
 }
 
 /* ---------- OCR実行 ---------- */
@@ -1343,28 +1661,38 @@ async function runOCR(){
   fill.style.width = "3%"; ptext.textContent = "画像を準備中...";
   const total = pickedImages.length;
   const results = [], raws = [];
+  const t0 = Date.now();
   try{
+    // ワーカーは初回だけ準備(2枚目以降はこの待ちが無くなる)
+    const worker = await getOcrWorker(()=>{
+      const sec = Math.round((Date.now()-t0)/1000);
+      fill.style.width = "8%";
+      ptext.textContent = `認識エンジンを準備中...(初回のみ・${sec}秒)`;
+    });
     for(let i=0;i<total;i++){
       const base = (i/total)*100, span = 100/total;
+      ptext.textContent = total>1 ? `画像を調整中... (${i+1}/${total}枚目)` : "画像を調整中...";
       const pre = await preprocessImage(pickedImages[i].blob).catch(()=>pickedImages[i].blob);
-      const result = await Tesseract.recognize(pre, "jpn+eng", {
-        logger: m=>{
-          if(m.status === "recognizing text"){
-            const p = m.progress;
-            fill.style.width = (base + span*(0.2 + p*0.8)) + "%";
-            ptext.textContent = total>1
-              ? `文字を認識中... (${i+1}/${total}枚目 ${Math.round(p*100)}%)`
-              : `文字を認識中... ${Math.round(p*100)}%`;
-          }else{
-            fill.style.width = (base + span*0.15) + "%";
-            ptext.textContent = "認識エンジンを準備中...(初回は時間がかかります)";
-          }
+      ocrProgressCb = m=>{
+        if(m.status === "recognizing text"){
+          const p = m.progress || 0;
+          fill.style.width = (base + span*(0.15 + p*0.85)) + "%";
+          ptext.textContent = total>1
+            ? `文字を認識中... (${i+1}/${total}枚目 ${Math.round(p*100)}%)`
+            : `文字を認識中... ${Math.round(p*100)}%`;
         }
-      });
+      };
+      const result = await worker.recognize(pre, {}, { text:true });
+      ocrProgressCb = null;
       const raw = (result && result.data && result.data.text) ? result.data.text : "";
       raws.push(raw);
       const parsed = parseOCR(raw);
+      parsed.__imgIdx = i;
       if(isMeaningfulCard(parsed)) results.push(parsed);
+      fill.style.width = (base + span) + "%";
+      ptext.textContent = total>1
+        ? `読み取り中... (${i+1}/${total}枚 完了)`
+        : "読み取り中...";
     }
     fill.style.width = "100%"; ptext.textContent = "完了!";
     $("#rawText").textContent = raws.map((r,i)=>total>1?`--- ${i+1}枚目 ---\n${r}`:r).join("\n\n") || "(テキストを検出できませんでした)";
@@ -1379,6 +1707,7 @@ async function runOCR(){
       $("#formBox").scrollIntoView({behavior:"smooth"});
       toast("うまく読み取れませんでした。元テキストを見ながら手入力してください");
     }else if(merged.length === 1){
+      pendingImage = await imageForCard(merged[0]);
       fillForm(merged[0], true);
       $("#formBox").classList.remove("hidden");
       $("#formBox").scrollIntoView({behavior:"smooth"});
@@ -1392,6 +1721,7 @@ async function runOCR(){
     ptext.textContent = "読み取りに失敗しました";
     toast("OCRに失敗しました。画像を変えるか、手入力をお試しください");
   }finally{
+    ocrProgressCb = null;
     $("#ocrBtn").disabled = false; $("#aiBtn").disabled = false;
     setTimeout(()=>$("#progressWrap").classList.add("hidden"), 1500);
   }
@@ -1439,6 +1769,7 @@ function resetScanUI(){
   pickedImages.forEach(p=>{ if(p.url) URL.revokeObjectURL(p.url); });
   pickedImages = [];
   currentImageBlob = null;
+  pendingImage = null;
   batchResults = [];
   batchEditIndex = -1;
   $("#cameraInput").value = "";
@@ -1485,8 +1816,36 @@ function addImages(files, labelPrefix){
 }
 
 /* ---------- 保存・削除 ---------- */
+/* 画像は別枠(IndexedDB)に保存するので、本文からは外して記録する */
 function persistLocal(){
-  store.set(LS_CARDS, JSON.stringify(cards));
+  store.set(LS_CARDS, JSON.stringify(cards.map(c=>{
+    const { image, ...rest } = c;
+    return rest;
+  })));
+}
+/* 名刺画像を保存用に圧縮(長辺800px) */
+function makeCardImage(blob){
+  return new Promise(resolve=>{
+    if(!blob) return resolve("");
+    const img = new Image();
+    const url = URL.createObjectURL(blob);
+    img.onload = ()=>{
+      const max = 800, s = Math.min(1, max/Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width*s)), h = Math.max(1, Math.round(img.height*s));
+      const cv = document.createElement("canvas");
+      cv.width = w; cv.height = h;
+      cv.getContext("2d").drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      try{ resolve(cv.toDataURL("image/jpeg", 0.68)); }catch(e){ resolve(""); }
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); resolve(""); };
+    img.src = url;
+  });
+}
+async function attachImage(card, dataUrl){
+  if(!dataUrl) return;
+  card.image = dataUrl;
+  await idbSet(card.id, dataUrl);
 }
 async function saveCard(){
   const data = readForm();
@@ -1512,8 +1871,12 @@ async function saveCard(){
   }else{
     const old = cards.find(c=>c.id===data.id);
     data.createdAt = old ? old.createdAt : nowStr();
+    if(old && old.image) data.image = old.image;     // 既存の画像を引き継ぐ
   }
   data.updatedAt = nowStr();
+  // 読み取り直後なら、その元画像を紐づける
+  if(pendingImage && !data.image) await attachImage(data, pendingImage);
+  pendingImage = null;
   const idx = cards.findIndex(c=>c.id===data.id);
   if(idx>=0) cards[idx] = data; else cards.unshift(data);
   persistLocal();
@@ -1532,6 +1895,7 @@ async function deleteCard(id){
   if(!confirm(`「${c.name}」を削除しますか?`)) return;
   cards = cards.filter(x=>x.id!==id);
   persistLocal();
+  idbDel(id);
   renderList();
   if(fb.connected && fb.user){
     try{ await userCol().doc(id).delete(); }
@@ -1549,22 +1913,108 @@ function editCard(id){
   $("#formBox").scrollIntoView({behavior:"smooth"});
 }
 
+/* =====================================================
+   五十音まわり
+===================================================== */
+const KANA_ROWS = [
+  { label:"あ", chars:"あいうえおぁぃぅぇぉヴ" },
+  { label:"か", chars:"かきくけこがぎぐげご" },
+  { label:"さ", chars:"さしすせそざじずぜぞ" },
+  { label:"た", chars:"たちつてとだぢづでどっ" },
+  { label:"な", chars:"なにぬねの" },
+  { label:"は", chars:"はひふへほばびぶべぼぱぴぷぺぽ" },
+  { label:"ま", chars:"まみむめも" },
+  { label:"や", chars:"やゆよゃゅょ" },
+  { label:"ら", chars:"らりるれろ" },
+  { label:"わ", chars:"わゐゑをん" },
+  { label:"他", chars:"" }
+];
+function toHiragana(s){
+  return String(s||"").normalize("NFKC").replace(/[ァ-ヶ]/g, ch=>
+    String.fromCharCode(ch.charCodeAt(0) - 0x60));
+}
+/* 並べ替え・五十音検索に使う読み。ふりがなが無ければ氏名がかなの場合だけ使う */
+function readingOf(c){
+  let r = toHiragana(c.kana||"").replace(/[\s　・]/g,"");
+  if(!r){
+    const n = toHiragana(c.name||"").replace(/[\s　・]/g,"");
+    if(/^[ぁ-ん]+$/.test(n)) r = n;
+  }
+  return r;
+}
+function kanaRowOf(c){
+  const r = readingOf(c);
+  if(!r) return "他";
+  const head = r[0];
+  const row = KANA_ROWS.find(k=>k.chars.includes(head));
+  return row ? row.label : "他";
+}
+
+/* ---------- 一覧の絞り込みと並べ替え ---------- */
+function allTags(){
+  const set = new Map();
+  cards.forEach(c=>(c.tags||"").split(/[,、]/).map(s=>s.trim()).filter(Boolean)
+    .forEach(t=>set.set(t, (set.get(t)||0)+1)));
+  return [...set.entries()].sort((a,b)=>b[1]-a[1] || a[0].localeCompare(b[0],"ja"));
+}
+function filterCards(){
+  let out = cards.slice();
+  if(searchMode === "keyword"){
+    const q = ($("#searchBox").value||"").trim().toLowerCase();
+    if(q) out = out.filter(c=>FIELDS.some(f=>(c[f]||"").toLowerCase().includes(q)));
+  }else if(searchMode === "tag"){
+    if(selectedTags.length){
+      out = out.filter(c=>{
+        const ts = (c.tags||"").split(/[,、]/).map(s=>s.trim()).filter(Boolean);
+        return selectedTags.some(t=>ts.includes(t));
+      });
+    }
+  }else if(searchMode === "kana"){
+    if(kanaRow) out = out.filter(c=>kanaRowOf(c) === kanaRow);
+  }
+  const byReading = (a,b)=>{
+    const ra = readingOf(a), rb = readingOf(b);
+    if(!ra && !rb) return (a.name||"").localeCompare(b.name||"","ja");
+    if(!ra) return 1;      // 読みが無いものは後ろへ
+    if(!rb) return -1;
+    return ra.localeCompare(rb, "ja");
+  };
+  // 日本語で始まるものを先、英数字で始まるものを後ろに(五十音バーの「他」と考え方をそろえる)
+  const jaFirst = s=>/^[ぁ-んァ-ヶ一-龥々〆]/.test(String(s||"").trim()) ? 0 : 1;
+  const byCompany = (a,b)=>{
+    const ca = (a.company||"").trim(), cb = (b.company||"").trim();
+    if(!ca && !cb) return byReading(a,b);
+    if(!ca) return 1;
+    if(!cb) return -1;
+    return (jaFirst(ca) - jaFirst(cb)) || ca.localeCompare(cb,"ja") || byReading(a,b);
+  };
+  const cmp = {
+    new:     (a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""),
+    old:     (a,b)=>(a.createdAt||"").localeCompare(b.createdAt||""),
+    updated: (a,b)=>(b.updatedAt||b.createdAt||"").localeCompare(a.updatedAt||a.createdAt||""),
+    kana:    byReading,
+    company: byCompany
+  }[sortBy] || ((a,b)=>0);
+  return out.sort(cmp);
+}
+
 /* ---------- 一覧描画 ---------- */
 function renderList(){
-  const q = $("#searchBox").value.trim().toLowerCase();
+  renderTagFilter();
+  renderKanaRail();
   const list = $("#cardList");
-  const filtered = cards.filter(c=>{
-    if(!q) return true;
-    return FIELDS.some(f=>(c[f]||"").toLowerCase().includes(q));
-  });
-  $("#countLine").textContent = q
-    ? `${filtered.length}件がヒット(全${cards.length}件)`
+  const filtered = filterCards();
+  const active = (searchMode==="keyword" && ($("#searchBox").value||"").trim())
+              || (searchMode==="tag" && selectedTags.length)
+              || (searchMode==="kana" && kanaRow);
+  $("#countLine").textContent = active
+    ? `${filtered.length}件を表示中(全${cards.length}件)`
     : `登録: ${cards.length}件`;
   if(filtered.length===0){
     list.innerHTML = `<div class="empty-state"><div class="big">📇</div>${
       cards.length===0
         ? "まだ名刺がありません。<br>「読み取り・追加」タブから登録しましょう!"
-        : "検索条件に一致する名刺がありません"
+        : "条件に一致する名刺がありません"
     }</div>`;
     return;
   }
@@ -1581,19 +2031,52 @@ function renderList(){
     if(c.url)     det.push(`<div><b>URL</b><a href="${esc(c.url)}" target="_blank">${esc(c.url)}</a></div>`);
     if(c.memo)    det.push(`<div><b>メモ</b>${esc(c.memo)}</div>`);
     det.push(`<div><b>登録</b>${esc(c.createdAt||"")}</div>`);
+    const thumb = c.image
+      ? `<div class="m-thumb" data-img="${esc(c.id)}"><img src="${esc(c.image)}" alt="${esc(c.name)}の名刺"></div>`
+      : `<div class="m-noimg" title="画像なし">📇</div>`;
     return `<div class="meishi" data-id="${esc(c.id)}">
-      <div class="m-name">${esc(c.name)}${c.kana?`<span class="m-kana">${esc(c.kana)}</span>`:""}</div>
-      ${org?`<div class="m-org">${esc(org)}</div>`:""}
-      ${tags.length?`<div class="chips">${tags.map(t=>`<span class="tag-chip">${esc(t)}</span>`).join("")}</div>`:""}
-      ${chips.length?`<div class="chips">${chips.join("")}</div>`:""}
-      <div class="m-detail hidden">${det.join("")}
-        <div class="m-actions">
-          <button class="btn btn-ghost btn-sm act-edit">✏️ 編集</button>
-          <button class="btn btn-danger-ghost btn-sm act-del">🗑 削除</button>
+      ${thumb}
+      <div class="m-main">
+        <div class="m-name">${esc(c.name)}${c.kana?`<span class="m-kana">${esc(c.kana)}</span>`:""}</div>
+        ${org?`<div class="m-org">${esc(org)}</div>`:""}
+        ${tags.length?`<div class="chips">${tags.map(t=>`<span class="tag-chip">${esc(t)}</span>`).join("")}</div>`:""}
+        ${chips.length?`<div class="chips">${chips.join("")}</div>`:""}
+        <div class="m-detail hidden">${det.join("")}
+          <div class="m-actions">
+            <button class="btn btn-ghost btn-sm act-edit">✏️ 編集</button>
+            <button class="btn btn-danger-ghost btn-sm act-del">🗑 削除</button>
+          </div>
         </div>
       </div>
     </div>`;
   }).join("");
+}
+
+function renderTagFilter(){
+  if(searchMode !== "tag") return;
+  const wrap = $("#tagFilter");
+  const tags = allTags();
+  // 消えたタグは選択から外す
+  selectedTags = selectedTags.filter(t=>tags.some(([n])=>n===t));
+  if(tags.length === 0){
+    wrap.innerHTML = `<div class="tag-empty">まだタグがありません。AI読み取りで登録すると業種などのタグが自動で付きます。</div>`;
+    return;
+  }
+  wrap.innerHTML = tags.map(([t,n])=>
+    `<button type="button" data-tag="${esc(t)}" class="${selectedTags.includes(t)?"on":""}">${esc(t)} <span style="opacity:.6">${n}</span></button>`
+  ).join("");
+}
+function renderKanaRail(){
+  const rail = $("#kanaRail");
+  if(searchMode !== "kana"){ rail.classList.add("hidden"); return; }
+  rail.classList.remove("hidden");
+  const counts = {};
+  cards.forEach(c=>{ const r = kanaRowOf(c); counts[r] = (counts[r]||0)+1; });
+  rail.innerHTML =
+    `<button type="button" data-kana="" class="${kanaRow===""?"on":""}">全</button>` +
+    KANA_ROWS.map(k=>
+      `<button type="button" data-kana="${k.label}" class="${kanaRow===k.label?"on":(counts[k.label]?"":"dim")}">${k.label}</button>`
+    ).join("");
 }
 $("#cardList").addEventListener("click", e=>{
   const item = e.target.closest(".meishi");
@@ -1602,8 +2085,56 @@ $("#cardList").addEventListener("click", e=>{
   if(e.target.closest(".act-edit")){ editCard(id); return; }
   if(e.target.closest(".act-del")){ deleteCard(id); return; }
   if(e.target.closest("a")) return; // tel/mailto リンクは通常動作
+  if(e.target.closest(".m-thumb")){ openViewer(id); return; }
   item.querySelector(".m-detail").classList.toggle("hidden");
 });
+
+/* ---------- 検索モードの切り替え ---------- */
+$("#modeTabs").addEventListener("click", e=>{
+  const btn = e.target.closest("button[data-mode]");
+  if(!btn) return;
+  searchMode = btn.dataset.mode;
+  $$("#modeTabs button").forEach(b=>b.classList.toggle("active", b===btn));
+  $("#modeKeyword").classList.toggle("hidden", searchMode!=="keyword");
+  $("#modeTag").classList.toggle("hidden", searchMode!=="tag");
+  $("#modeKana").classList.toggle("hidden", searchMode!=="kana");
+  store.set(LS_VIEW, JSON.stringify({searchMode, sortBy}));
+  renderList();
+});
+$("#tagFilter").addEventListener("click", e=>{
+  const btn = e.target.closest("button[data-tag]");
+  if(!btn) return;
+  const t = btn.dataset.tag;
+  selectedTags = selectedTags.includes(t) ? selectedTags.filter(x=>x!==t) : selectedTags.concat(t);
+  renderList();
+});
+$("#kanaRail").addEventListener("click", e=>{
+  const btn = e.target.closest("button[data-kana]");
+  if(!btn) return;
+  kanaRow = btn.dataset.kana;
+  renderList();
+});
+$("#sortSel").addEventListener("change", ()=>{
+  sortBy = $("#sortSel").value;
+  store.set(LS_VIEW, JSON.stringify({searchMode, sortBy}));
+  renderList();
+});
+
+/* ---------- 画像ビューア ---------- */
+function openViewer(id){
+  const c = cards.find(x=>x.id===id);
+  if(!c || !c.image) return;
+  $("#viewerImg").src = c.image;
+  $("#viewerTitle").textContent = [c.name, c.company].filter(Boolean).join(" / ");
+  $("#imgViewer").classList.add("show");
+}
+function closeViewer(){
+  $("#imgViewer").classList.remove("show");
+  $("#viewerImg").src = "";
+}
+$("#viewerClose").addEventListener("click", closeViewer);
+$("#imgViewer").addEventListener("click", e=>{ if(e.target.id === "imgViewer") closeViewer(); });
+document.addEventListener("keydown", e=>{ if(e.key === "Escape") closeViewer(); });
 
 /* ---------- CSV / バックアップ ---------- */
 function downloadBlob(blob, filename){
@@ -1642,6 +2173,7 @@ async function importJSON(file){
     for(const c of arr){
       if(!c || !c.name) continue;
       if(!c.id) c.id = uid();
+      if(c.image) await idbSet(c.id, c.image);      // 画像入りのバックアップにも対応
       const idx = cards.findIndex(x=>x.id===c.id);
       if(idx>=0) cards[idx] = c; else { cards.push(c); }
       added++;
@@ -1756,6 +2288,13 @@ async function startSync(silent){
       const arr = [];
       s.forEach(doc=>{ const d = doc.data(); if(d && d.name) arr.push(d); });
       arr.sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
+      // 画像が付いてきたものは端末側にも取り込み、無いものは端末の画像を残す
+      const localImg = {};
+      cards.forEach(c=>{ if(c.image) localImg[c.id] = c.image; });
+      arr.forEach(c=>{
+        if(c.image) idbSet(c.id, c.image);
+        else if(localImg[c.id]) c.image = localImg[c.id];
+      });
       cards = arr;
       persistLocal();
       renderList();
@@ -1924,7 +2463,25 @@ if("serviceWorker" in navigator && location.protocol === "https:"){
     const saved = store.get(LS_CARDS);
     if(saved) cards = JSON.parse(saved) || [];
   }catch(e){ cards = []; }
+  // 表示設定(検索モード・並び順)の復元
+  try{
+    const v = JSON.parse(store.get(LS_VIEW) || "{}");
+    if(v.sortBy){ sortBy = v.sortBy; $("#sortSel").value = sortBy; }
+    if(v.searchMode){
+      const btn = document.querySelector(`#modeTabs button[data-mode="${v.searchMode}"]`);
+      if(btn) btn.click();
+    }
+  }catch(e){}
   renderList();
+  // 保存済みの名刺画像を読み込んで一覧に反映(開けなかった時は少し待って再挑戦)
+  const hydrateImages = (retry)=>idbAll().then(map=>{
+    const keys = Object.keys(map);
+    if(keys.length === 0 && retry > 0){ setTimeout(()=>hydrateImages(retry-1), 800); return; }
+    let n = 0;
+    cards.forEach(c=>{ if(!c.image && map[c.id]){ c.image = map[c.id]; n++; } });
+    if(n) renderList();
+  });
+  hydrateImages(2);
 
   // --- AI設定の復元(埋め込みキーがあればそのまま有効) ---
   const savedKey = getAiKey();
