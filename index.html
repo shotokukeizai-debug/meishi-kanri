@@ -87,8 +87,16 @@ input[type=text],input[type=tel],input[type=email],input[type=url],input[type=pa
   transition:border-color .15s;
 }
 input:focus,textarea:focus{outline:none;border-color:var(--primary)}
+input::placeholder,textarea::placeholder{color:#c3c9d8;font-style:italic;opacity:1}
 label.fld{display:block;margin-bottom:10px}
 label.fld span{display:block;font-size:12px;font-weight:600;color:var(--text-sub);margin-bottom:4px}
+label.fld.filled input,label.fld.filled textarea{border-color:var(--accent);background:#f4fffb}
+label.fld.filled span::after{content:" ✓ 読取";color:var(--accent);font-size:11px;margin-left:4px}
+.extract-summary{
+  font-size:13px;border-radius:10px;padding:9px 12px;margin-bottom:12px;
+  background:var(--primary-light);color:var(--primary-dark);
+}
+.extract-summary.warn{background:#fff9db;color:#5c4d00}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .muted{color:var(--text-sub);font-size:12.5px}
 .hidden{display:none!important}
@@ -224,27 +232,28 @@ pre.code-block{
 
       <div class="card-box hidden" id="formBox">
         <h2 class="sec">📝 内容を確認・編集</h2>
-        <p class="muted" style="margin-bottom:10px">自動抽出の結果です。間違いがあれば修正して保存してください。</p>
+        <div class="extract-summary" id="extractSummary"></div>
+        <p class="muted" style="margin-bottom:10px">薄い斜体の文字は<b>入力例</b>で、実際のデータではありません。空欄は手で入力してください。</p>
         <input type="hidden" id="f_id">
-        <label class="fld"><span>氏名 *</span><input type="text" id="f_name" placeholder="山田 太郎"></label>
-        <label class="fld"><span>ふりがな</span><input type="text" id="f_kana" placeholder="やまだ たろう"></label>
-        <label class="fld"><span>会社名</span><input type="text" id="f_company" placeholder="株式会社サンプル"></label>
+        <label class="fld"><span>氏名 *</span><input type="text" id="f_name" placeholder="例: 山田 太郎"></label>
+        <label class="fld"><span>ふりがな</span><input type="text" id="f_kana" placeholder="例: やまだ たろう"></label>
+        <label class="fld"><span>会社名</span><input type="text" id="f_company" placeholder="例: 株式会社サンプル"></label>
         <div class="row2">
-          <label class="fld"><span>部署</span><input type="text" id="f_dept" placeholder="営業部"></label>
-          <label class="fld"><span>役職</span><input type="text" id="f_title" placeholder="部長"></label>
+          <label class="fld"><span>部署</span><input type="text" id="f_dept" placeholder="例: 営業部"></label>
+          <label class="fld"><span>役職</span><input type="text" id="f_title" placeholder="例: 部長"></label>
         </div>
         <div class="row2">
-          <label class="fld"><span>電話番号</span><input type="tel" id="f_phone" placeholder="03-1234-5678"></label>
-          <label class="fld"><span>携帯番号</span><input type="tel" id="f_mobile" placeholder="090-1234-5678"></label>
+          <label class="fld"><span>電話番号</span><input type="tel" id="f_phone" placeholder="例: 03-1234-5678"></label>
+          <label class="fld"><span>携帯番号</span><input type="tel" id="f_mobile" placeholder="例: 090-1234-5678"></label>
         </div>
         <div class="row2">
           <label class="fld"><span>FAX</span><input type="tel" id="f_fax"></label>
-          <label class="fld"><span>郵便番号</span><input type="text" id="f_postal" placeholder="100-0001"></label>
+          <label class="fld"><span>郵便番号</span><input type="text" id="f_postal" placeholder="例: 100-0001"></label>
         </div>
-        <label class="fld"><span>メールアドレス</span><input type="email" id="f_email" placeholder="taro@example.com"></label>
-        <label class="fld"><span>URL</span><input type="url" id="f_url" placeholder="https://example.com"></label>
-        <label class="fld"><span>住所</span><textarea id="f_address" rows="2" placeholder="東京都千代田区1-2-3"></textarea></label>
-        <label class="fld"><span>メモ</span><textarea id="f_memo" rows="2" placeholder="展示会で名刺交換 など"></textarea></label>
+        <label class="fld"><span>メールアドレス</span><input type="email" id="f_email" placeholder="例: taro@example.com"></label>
+        <label class="fld"><span>URL</span><input type="url" id="f_url" placeholder="例: https://example.com"></label>
+        <label class="fld"><span>住所</span><textarea id="f_address" rows="2" placeholder="例: 東京都千代田区1-2-3"></textarea></label>
+        <label class="fld"><span>メモ</span><textarea id="f_memo" rows="2" placeholder="例: 展示会で名刺交換"></textarea></label>
         <div class="form-actions">
           <button class="btn btn-ghost" id="cancelBtn">キャンセル</button>
           <button class="btn btn-primary" id="saveBtn">💾 保存する</button>
@@ -587,7 +596,8 @@ async function runOCR(){
     $("#rawText").textContent = raw || "(テキストを検出できませんでした)";
     $("#rawDetails").classList.remove("hidden");
     const parsed = parseOCR(raw);
-    fillForm(parsed);
+    fillForm(parsed, true);
+    $("#rawDetails").open = !Object.values(parsed).some(v=>v);   // 何も取れない時は元テキストを開く
     $("#formBox").classList.remove("hidden");
     $("#formBox").scrollIntoView({behavior:"smooth"});
     toast("読み取り完了!内容を確認してください");
@@ -603,9 +613,28 @@ async function runOCR(){
 
 /* ---------- フォーム ---------- */
 const FIELDS = ["name","kana","company","dept","title","phone","mobile","fax","email","url","postal","address","memo"];
-function fillForm(data){
+const FIELD_LABELS = {name:"氏名",kana:"ふりがな",company:"会社名",dept:"部署",title:"役職",phone:"電話番号",mobile:"携帯番号",fax:"FAX",email:"メール",url:"URL",postal:"郵便番号",address:"住所",memo:"メモ"};
+function fillForm(data, fromOCR){
   $("#f_id").value = data.id || "";
-  FIELDS.forEach(f=>{ $("#f_"+f).value = data[f] || ""; });
+  const got = [];
+  FIELDS.forEach(f=>{
+    const el = $("#f_"+f);
+    const v = data[f] || "";
+    el.value = v;
+    const lbl = el.closest("label.fld");
+    if(lbl) lbl.classList.toggle("filled", !!v && !!fromOCR);
+    if(v) got.push(FIELD_LABELS[f]);
+  });
+  const sum = $("#extractSummary");
+  if(!fromOCR){ sum.classList.add("hidden"); return; }
+  sum.classList.remove("hidden");
+  if(got.length === 0){
+    sum.className = "extract-summary warn";
+    sum.textContent = "⚠️ 項目を自動抽出できませんでした。上の「読み取った元テキストを見る」で認識結果を確認しつつ、手入力してください。";
+  }else{
+    sum.className = "extract-summary" + (got.length <= 3 ? " warn" : "");
+    sum.textContent = `✓ ${got.length}項目を自動抽出しました(${got.join("・")})。残りは空欄なので、必要なら手入力してください。`;
+  }
 }
 function readForm(){
   const o = { id: $("#f_id").value || "" };
