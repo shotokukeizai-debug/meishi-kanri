@@ -90,6 +90,8 @@ input:focus,textarea:focus{outline:none;border-color:var(--primary)}
 input::placeholder,textarea::placeholder{color:#c3c9d8;font-style:italic;opacity:1}
 label.fld{display:block;margin-bottom:10px}
 label.fld span{display:block;font-size:12px;font-weight:600;color:var(--text-sub);margin-bottom:4px}
+label.fld span i{font-weight:400;font-style:normal;color:#aab2c5;font-size:11px;margin-left:6px}
+label.fld.filled input,label.fld.filled textarea{font-weight:600}
 label.fld.filled input,label.fld.filled textarea{border-color:var(--accent);background:#f4fffb}
 label.fld.filled span::after{content:" ✓ 読取";color:var(--accent);font-size:11px;margin-left:4px}
 .extract-summary{
@@ -97,6 +99,16 @@ label.fld.filled span::after{content:" ✓ 読取";color:var(--accent);font-size
   background:var(--primary-light);color:var(--primary-dark);
 }
 .extract-summary.warn{background:#fff9db;color:#5c4d00}
+.btn-ai{background:linear-gradient(135deg,#7048e8,#4263eb);color:#fff}
+.btn-ai:hover{filter:brightness(1.08)}
+.tag-chip{
+  font-size:11.5px;background:#f3f0ff;color:#5f3dc4;border:1px solid #d0bfff;
+  padding:2px 9px;border-radius:999px;white-space:nowrap;
+}
+.ai-badge{
+  display:inline-block;font-size:10.5px;background:#f3f0ff;color:#5f3dc4;
+  border-radius:5px;padding:1px 6px;margin-left:6px;vertical-align:middle;font-weight:600;
+}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .muted{color:var(--text-sub);font-size:12.5px}
 .hidden{display:none!important}
@@ -216,7 +228,9 @@ pre.code-block{
 
         <div id="previewWrap" class="hidden">
           <img id="previewImg" alt="名刺プレビュー">
-          <button class="btn btn-primary btn-block" id="ocrBtn" style="margin-top:10px">🔍 この画像を読み取る</button>
+          <button class="btn btn-ai btn-block" id="aiBtn" style="margin-top:10px">🤖 AIで読み取る(高精度)</button>
+          <button class="btn btn-outline btn-block" id="ocrBtn" style="margin-top:8px">🔍 通常OCRで読み取る(オフライン可)</button>
+          <p class="muted" id="aiHint" style="margin-top:6px;text-align:center"></p>
         </div>
 
         <div class="progress-wrap hidden" id="progressWrap">
@@ -233,27 +247,28 @@ pre.code-block{
       <div class="card-box hidden" id="formBox">
         <h2 class="sec">📝 内容を確認・編集</h2>
         <div class="extract-summary" id="extractSummary"></div>
-        <p class="muted" style="margin-bottom:10px">薄い斜体の文字は<b>入力例</b>で、実際のデータではありません。空欄は手で入力してください。</p>
+        <p class="muted" style="margin-bottom:10px">緑の枠が付いた欄が<b>読み取れた項目</b>です。白い欄は<b>空っぽ</b>なので、必要な項目はタップして入力してください(入力した項目はすべてCSVに出力されます)。</p>
         <input type="hidden" id="f_id">
-        <label class="fld"><span>氏名 *</span><input type="text" id="f_name" placeholder="例: 山田 太郎"></label>
-        <label class="fld"><span>ふりがな</span><input type="text" id="f_kana" placeholder="例: やまだ たろう"></label>
-        <label class="fld"><span>会社名</span><input type="text" id="f_company" placeholder="例: 株式会社サンプル"></label>
+        <label class="fld"><span>氏名 *<i>例: 山田 太郎</i></span><input type="text" id="f_name"></label>
+        <label class="fld"><span>ふりがな<i>例: やまだ たろう</i></span><input type="text" id="f_kana"></label>
+        <label class="fld"><span>会社名<i>例: 株式会社サンプル</i></span><input type="text" id="f_company"></label>
         <div class="row2">
-          <label class="fld"><span>部署</span><input type="text" id="f_dept" placeholder="例: 営業部"></label>
-          <label class="fld"><span>役職</span><input type="text" id="f_title" placeholder="例: 部長"></label>
+          <label class="fld"><span>部署<i>例: 営業部</i></span><input type="text" id="f_dept"></label>
+          <label class="fld"><span>役職<i>例: 部長</i></span><input type="text" id="f_title"></label>
         </div>
         <div class="row2">
-          <label class="fld"><span>電話番号</span><input type="tel" id="f_phone" placeholder="例: 03-1234-5678"></label>
-          <label class="fld"><span>携帯番号</span><input type="tel" id="f_mobile" placeholder="例: 090-1234-5678"></label>
+          <label class="fld"><span>電話番号<i>例: 03-1234-5678</i></span><input type="tel" id="f_phone"></label>
+          <label class="fld"><span>携帯番号<i>例: 090-1234-5678</i></span><input type="tel" id="f_mobile"></label>
         </div>
         <div class="row2">
           <label class="fld"><span>FAX</span><input type="tel" id="f_fax"></label>
-          <label class="fld"><span>郵便番号</span><input type="text" id="f_postal" placeholder="例: 100-0001"></label>
+          <label class="fld"><span>郵便番号<i>例: 100-0001</i></span><input type="text" id="f_postal"></label>
         </div>
-        <label class="fld"><span>メールアドレス</span><input type="email" id="f_email" placeholder="例: taro@example.com"></label>
-        <label class="fld"><span>URL</span><input type="url" id="f_url" placeholder="例: https://example.com"></label>
-        <label class="fld"><span>住所</span><textarea id="f_address" rows="2" placeholder="例: 東京都千代田区1-2-3"></textarea></label>
-        <label class="fld"><span>メモ</span><textarea id="f_memo" rows="2" placeholder="例: 展示会で名刺交換"></textarea></label>
+        <label class="fld"><span>メールアドレス<i>例: taro@example.com</i></span><input type="email" id="f_email"></label>
+        <label class="fld"><span>URL<i>例: https://example.com</i></span><input type="url" id="f_url"></label>
+        <label class="fld"><span>住所<i>例: 東京都千代田区1-2-3</i></span><textarea id="f_address" rows="2"></textarea></label>
+        <label class="fld"><span>タグ<i>例: IT・製造業(カンマ区切り)</i></span><input type="text" id="f_tags"></label>
+        <label class="fld"><span>メモ<i>例: 展示会で名刺交換</i></span><textarea id="f_memo" rows="2"></textarea></label>
         <div class="form-actions">
           <button class="btn btn-ghost" id="cancelBtn">キャンセル</button>
           <button class="btn btn-primary" id="saveBtn">💾 保存する</button>
@@ -263,6 +278,37 @@ pre.code-block{
 
     <!-- ============ 設定・同期 ============ -->
     <section class="tab" id="tab-settings">
+      <div class="card-box">
+        <h2 class="sec">🤖 AI読み取り(Google Gemini・無料)</h2>
+        <p class="muted" style="margin-bottom:8px">AIが名刺画像を直接見て、全項目を高精度に抽出します。さらに業種などを推測してタグとメモも自動で付けます。無料枠で使えます。</p>
+        <label class="fld"><span>Gemini APIキー</span><input type="password" id="aiKey" autocomplete="off" placeholder="AIza... で始まるキー"></label>
+        <label class="fld"><span>モデル(通常は変更不要)</span>
+          <select id="aiModel" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:15px;font-family:inherit;background:#fff;color:var(--text)">
+            <option value="gemini-flash-latest">最新のFlash(自動・推奨)</option>
+            <option value="gemini-3.5-flash">gemini-3.5-flash</option>
+            <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+            <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite(軽量)</option>
+          </select>
+        </label>
+        <div class="form-actions">
+          <button class="btn btn-danger-ghost" id="aiClearBtn">削除</button>
+          <button class="btn btn-ai" id="aiSaveBtn">🤖 保存して接続テスト</button>
+        </div>
+        <div class="status-line" id="aiStatus">未設定(通常OCRのみ使えます)</div>
+      </div>
+
+      <div class="card-box">
+        <h2 class="sec">🔑 APIキーの取得手順(無料・約2分)</h2>
+        <ol class="steps">
+          <li><a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a> をGoogleアカウントで開きます。</li>
+          <li>「<b>Create API key</b>(APIキーを作成)」を押します。プロジェクトを選ぶ画面が出たら、そのまま新規作成でOK。</li>
+          <li>表示された <code>AIza...</code> で始まる文字列をコピーして、上の欄に貼り付け →「保存して接続テスト」。</li>
+          <li>成功したら、読み取り画面に「🤖 AIで読み取る」ボタンが使えるようになります。</li>
+        </ol>
+        <div class="safe-box">💡 <b>費用について</b>: 無料枠の範囲内なら課金されません。クレジットカードの登録も不要です。名刺の読み取りは1枚あたりごくわずかな消費なので、個人利用なら無料枠で十分足ります。</div>
+        <div class="note-box">🔐 APIキーはこの端末のブラウザ内にのみ保存され、外部には送信されません(Google以外には送られません)。他の人と共有する端末では使わないでください。</div>
+      </div>
+
       <div class="card-box">
         <h2 class="sec">☁️ クラウド同期(Firebase)</h2>
         <p class="muted" style="margin-bottom:8px">スマホとPCで同じデータを使うには、無料のFirebaseに接続します。下の手順で取得した構成(firebaseConfig)を貼り付けてください。</p>
@@ -353,6 +399,8 @@ const store = {
 
 const LS_CARDS = "meishi_cards_v1";
 const LS_FBCFG = "meishi_fb_config_v1";
+const LS_AIKEY = "meishi_ai_key_v1";
+const LS_AIMODEL = "meishi_ai_model_v1";
 
 /* ---------- state ---------- */
 let cards = [];            // {id,name,kana,company,dept,title,phone,mobile,fax,email,url,postal,address,memo,createdAt,updatedAt}
@@ -536,6 +584,261 @@ function parseOCR(rawText){
   return r;
 }
 
+/* =====================================================
+   AI読み取り(Google Gemini)
+===================================================== */
+const AI_FIELD_DESC = {
+  name:"氏名(名刺に書かれている通り。姓と名の間は半角スペース)",
+  kana:"氏名のふりがな(名刺に記載があればそれを優先。無ければ漢字から推定してひらがなで)",
+  company:"会社名・団体名(株式会社などの法人格も含めて正確に)",
+  dept:"部署名(例: 営業本部 第一営業部)",
+  title:"役職(例: 代表取締役、部長、マネージャー)",
+  phone:"固定電話番号(ハイフン区切り)",
+  mobile:"携帯電話番号(ハイフン区切り)",
+  fax:"FAX番号(ハイフン区切り)",
+  email:"メールアドレス",
+  url:"ウェブサイトURL",
+  postal:"郵便番号(例: 100-0001。〒記号は含めない)",
+  address:"住所(郵便番号を除いた部分。ビル名・階数も含める)",
+  tags:"この人物・会社の業種や事業内容を表す短いタグを1〜4個(例: IT, 製造業, 建設, 士業, 飲食)。カンマ区切りの文字列",
+  memo:"名刺から読み取れる補足情報を1〜2文で。会社の事業内容の推測、資格や肩書きの補足、記載されているキャッチコピーなど。推測が含まれる場合は「〜と思われる」と書く"
+};
+const AI_PROMPT = `あなたは名刺情報を正確に読み取る専門家です。この名刺画像を読み取り、各項目をJSONで返してください。
+
+項目の説明:
+${Object.entries(AI_FIELD_DESC).map(([k,v])=>`- ${k}: ${v}`).join("\n")}
+
+重要なルール:
+- 名刺に書かれていない項目は必ず空文字 "" にする。推測で埋めないこと(ただし kana と tags と memo は推測可)。
+- 電話番号とFAXは必ず区別する。「TEL」「FAX」の表記や配置をよく見ること。
+- 携帯番号(070/080/090で始まる)は mobile に入れ、固定電話は phone に入れる。
+- 縦書きや英語併記の名刺にも対応すること。日本語表記を優先し、英語表記しかない場合は英語のまま入れる。
+- 会社のロゴに含まれる文字も会社名の判断材料にすること。
+- JSON以外の文章は一切出力しないこと。`;
+
+const AI_SCHEMA = {
+  type:"object",
+  properties: Object.fromEntries(Object.keys(AI_FIELD_DESC).map(k=>[k,{type:"string"}])),
+  required: Object.keys(AI_FIELD_DESC)
+};
+
+function getAiKey(){ return (store.get(LS_AIKEY)||"").trim(); }
+function getAiModel(){ return store.get(LS_AIMODEL) || "gemini-flash-latest"; }
+
+function blobToBase64(blob){
+  return new Promise((res,rej)=>{
+    const fr = new FileReader();
+    fr.onload = ()=>{
+      const s = String(fr.result);
+      res(s.slice(s.indexOf(",")+1));
+    };
+    fr.onerror = rej;
+    fr.readAsDataURL(blob);
+  });
+}
+
+/* Geminiは新旧2系統のリクエスト形式があるため、順に試して通った方を使う */
+function buildGeminiRequests(model, b64, mime, prompt){
+  const base = "https://generativelanguage.googleapis.com/v1beta";
+  return [
+    {
+      label: "generateContent",
+      url: `${base}/models/${encodeURIComponent(model)}:generateContent`,
+      body: {
+        contents: [{ role:"user", parts:[ {text:prompt}, {inline_data:{mime_type:mime, data:b64}} ] }],
+        generationConfig: { responseMimeType:"application/json", responseSchema:AI_SCHEMA, temperature:0 }
+      }
+    },
+    {
+      label: "interactions",
+      url: `${base}/interactions`,
+      body: {
+        model: model,
+        input: [{ role:"user", content:[ {type:"text", text:prompt}, {type:"image", data:b64, mime_type:mime} ] }],
+        response_format: { type:"text", mime_type:"application/json", schema:AI_SCHEMA }
+      }
+    }
+  ];
+}
+
+/* レスポンス形式も系統によって違うのでまとめて取り出す */
+function pickGeminiText(json){
+  if(!json) return "";
+  const c = json.candidates && json.candidates[0];
+  if(c){
+    const parts = (c.content && (c.content.parts || c.content)) || [];
+    if(Array.isArray(parts)){
+      const t = parts.map(p=>p && (p.text||"")).join("");
+      if(t) return t;
+    }
+    if(typeof c.text === "string") return c.text;
+  }
+  if(typeof json.text === "string") return json.text;
+  if(Array.isArray(json.output)){
+    for(const o of json.output){
+      const cont = o && (o.content || o.parts);
+      if(Array.isArray(cont)){
+        const t = cont.map(x=>x && (x.text||"")).join("");
+        if(t) return t;
+      }
+      if(o && typeof o.text === "string") return o.text;
+    }
+  }
+  if(Array.isArray(json.contents)){
+    const t = json.contents.map(x=>x && x.text || "").join("");
+    if(t) return t;
+  }
+  return "";
+}
+
+async function callGemini(b64, mime, prompt, onProgress){
+  const key = getAiKey();
+  if(!key) throw new Error("NO_KEY");
+  const model = getAiModel();
+  const attempts = buildGeminiRequests(model, b64, mime, prompt);
+  let lastErr = "";
+  for(const at of attempts){
+    if(onProgress) onProgress(at.label);
+    let res;
+    try{
+      res = await fetch(at.url, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json", "x-goog-api-key":key },
+        body: JSON.stringify(at.body)
+      });
+    }catch(e){
+      lastErr = "通信に失敗しました(オフラインの可能性があります)";
+      continue;
+    }
+    const txt = await res.text();
+    let json = null;
+    try{ json = JSON.parse(txt); }catch(e){}
+    if(!res.ok){
+      const msg = (json && json.error && json.error.message) || txt.slice(0,200);
+      // キー自体が無効なら次の形式を試しても無駄なので即終了
+      if(res.status === 400 && /API key not valid|API_KEY_INVALID/i.test(msg)) throw new Error("APIキーが正しくありません。設定画面で確認してください。");
+      if(res.status === 403) throw new Error("APIキーが拒否されました(権限をご確認ください): " + msg);
+      if(res.status === 429) throw new Error("無料枠の上限に達したようです。しばらく待ってからお試しください。");
+      lastErr = `${res.status}: ${msg}`;
+      continue;
+    }
+    const out = pickGeminiText(json).trim();
+    if(!out){ lastErr = "AIの応答を解釈できませんでした"; continue; }
+    const m = out.match(/\{[\s\S]*\}/);
+    try{ return JSON.parse(m ? m[0] : out); }
+    catch(e){ lastErr = "AIの応答がJSONではありませんでした"; continue; }
+  }
+  throw new Error(lastErr || "AI読み取りに失敗しました");
+}
+
+async function runAI(){
+  if(!getAiKey()){
+    toast("先に設定タブでGemini APIキーを登録してください");
+    gotoTab("settings");
+    return;
+  }
+  if(!currentImageBlob){ toast("先に画像を選択してください"); return; }
+  $("#progressWrap").classList.remove("hidden");
+  $("#aiBtn").disabled = true; $("#ocrBtn").disabled = true;
+  const fill = $("#progressFill"), ptext = $("#progressText");
+  fill.style.width = "10%"; ptext.textContent = "画像を準備中...";
+  try{
+    const img = await shrinkForAI(currentImageBlob).catch(()=>currentImageBlob);
+    const b64 = await blobToBase64(img);
+    fill.style.width = "40%"; ptext.textContent = "AIが名刺を読み取っています...";
+    const data = await callGemini(b64, img.type || "image/jpeg", AI_PROMPT, ()=>{
+      fill.style.width = "60%";
+    });
+    fill.style.width = "100%"; ptext.textContent = "完了!";
+    const clean = {};
+    Object.keys(AI_FIELD_DESC).forEach(k=>{
+      let v = data[k];
+      clean[k] = (typeof v === "string") ? v.trim() : (Array.isArray(v) ? v.join(", ") : "");
+    });
+    $("#rawText").textContent = JSON.stringify(data, null, 2);
+    $("#rawDetails").classList.remove("hidden");
+    $("#rawDetails").open = false;
+    fillForm(clean, true, true);
+    $("#formBox").classList.remove("hidden");
+    $("#formBox").scrollIntoView({behavior:"smooth"});
+    toast("AIで読み取りました 🤖");
+  }catch(err){
+    console.error(err);
+    ptext.textContent = "読み取りに失敗しました";
+    const msg = err && err.message === "NO_KEY" ? "APIキーが未設定です" : (err && err.message) || "不明なエラー";
+    toast("AI読み取り失敗: " + msg);
+    setAiStatus("err", "直近のエラー: " + msg);
+  }finally{
+    $("#aiBtn").disabled = false; $("#ocrBtn").disabled = false;
+    setTimeout(()=>$("#progressWrap").classList.add("hidden"), 1500);
+  }
+}
+
+/* AI送信用に長辺1280pxへ縮小(通信量と無料枠の節約) */
+function shrinkForAI(file){
+  return new Promise((resolve,reject)=>{
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = ()=>{
+      const max = 1280;
+      const scale = Math.min(1, max/Math.max(img.width, img.height));
+      const w = Math.round(img.width*scale), h = Math.round(img.height*scale);
+      const cv = document.createElement("canvas");
+      cv.width = w; cv.height = h;
+      cv.getContext("2d").drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      cv.toBlob(b=>resolve(b || file), "image/jpeg", 0.9);
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error("画像を読み込めません")); };
+    img.src = url;
+  });
+}
+
+function setAiStatus(cls, text){
+  const el = $("#aiStatus");
+  el.className = "status-line" + (cls ? " "+cls : "");
+  el.textContent = text;
+}
+function refreshAiUI(){
+  const has = !!getAiKey();
+  $("#aiBtn").classList.toggle("hidden", false);
+  $("#aiHint").textContent = has
+    ? "AI読み取りは通信が必要です。うまくいかない時は通常OCRもお試しください。"
+    : "🤖 AIを使うには、設定タブでGemini APIキー(無料)を登録してください。";
+  if(has) setAiStatus("ok", "✅ 設定済み。読み取り画面で「AIで読み取る」が使えます。");
+}
+async function saveAiKey(){
+  const k = $("#aiKey").value.trim();
+  const model = $("#aiModel").value;
+  if(!k){ setAiStatus("err","APIキーを入力してください"); return; }
+  store.set(LS_AIKEY, k);
+  store.set(LS_AIMODEL, model);
+  setAiStatus("", "接続テスト中...");
+  // 1x1の白画像で疎通確認(消費はごくわずか)
+  const cv = document.createElement("canvas");
+  cv.width = cv.height = 8;
+  const ctx = cv.getContext("2d");
+  ctx.fillStyle = "#fff"; ctx.fillRect(0,0,8,8);
+  const blob = await new Promise(r=>cv.toBlob(r,"image/jpeg",0.8));
+  try{
+    const b64 = await blobToBase64(blob);
+    await callGemini(b64, "image/jpeg", 'この画像について、必ず {"ok":"yes"} というJSONだけを返してください。');
+    setAiStatus("ok","✅ 接続できました。読み取り画面で「AIで読み取る」が使えます。");
+    toast("AI読み取りを有効にしました 🤖");
+  }catch(e){
+    setAiStatus("err","接続テストに失敗: " + (e.message||e));
+    toast("接続テストに失敗しました");
+  }
+  refreshAiUI();
+}
+function clearAiKey(){
+  store.del(LS_AIKEY);
+  $("#aiKey").value = "";
+  setAiStatus("", "削除しました(通常OCRのみ使えます)");
+  refreshAiUI();
+  toast("APIキーを削除しました");
+}
+
 /* ---------- 画像前処理(グレースケール+拡大縮小) ---------- */
 function preprocessImage(file){
   return new Promise((resolve,reject)=>{
@@ -612,9 +915,9 @@ async function runOCR(){
 }
 
 /* ---------- フォーム ---------- */
-const FIELDS = ["name","kana","company","dept","title","phone","mobile","fax","email","url","postal","address","memo"];
-const FIELD_LABELS = {name:"氏名",kana:"ふりがな",company:"会社名",dept:"部署",title:"役職",phone:"電話番号",mobile:"携帯番号",fax:"FAX",email:"メール",url:"URL",postal:"郵便番号",address:"住所",memo:"メモ"};
-function fillForm(data, fromOCR){
+const FIELDS = ["name","kana","company","dept","title","phone","mobile","fax","email","url","postal","address","tags","memo"];
+const FIELD_LABELS = {name:"氏名",kana:"ふりがな",company:"会社名",dept:"部署",title:"役職",phone:"電話番号",mobile:"携帯番号",fax:"FAX",email:"メール",url:"URL",postal:"郵便番号",address:"住所",tags:"タグ",memo:"メモ"};
+function fillForm(data, fromOCR, byAI){
   $("#f_id").value = data.id || "";
   const got = [];
   FIELDS.forEach(f=>{
@@ -628,12 +931,13 @@ function fillForm(data, fromOCR){
   const sum = $("#extractSummary");
   if(!fromOCR){ sum.classList.add("hidden"); return; }
   sum.classList.remove("hidden");
+  const how = byAI ? "🤖 AIが" : "";
   if(got.length === 0){
     sum.className = "extract-summary warn";
     sum.textContent = "⚠️ 項目を自動抽出できませんでした。上の「読み取った元テキストを見る」で認識結果を確認しつつ、手入力してください。";
   }else{
     sum.className = "extract-summary" + (got.length <= 3 ? " warn" : "");
-    sum.textContent = `✓ ${got.length}項目を自動抽出しました(${got.join("・")})。残りは空欄なので、必要なら手入力してください。`;
+    sum.textContent = `✓ ${how}${got.length}項目を抽出しました(${got.join("・")})。残りは空欄なので、必要なら手入力してください。`;
   }
 }
 function readForm(){
@@ -728,6 +1032,7 @@ function renderList(){
     if(c.phone)  chips.push(`<a class="chip" href="tel:${esc(c.phone)}">☎ ${esc(c.phone)}</a>`);
     if(c.mobile) chips.push(`<a class="chip" href="tel:${esc(c.mobile)}">📱 ${esc(c.mobile)}</a>`);
     if(c.email)  chips.push(`<a class="chip" href="mailto:${esc(c.email)}">✉ ${esc(c.email)}</a>`);
+    const tags = (c.tags||"").split(/[,、]/).map(s=>s.trim()).filter(Boolean);
     const det = [];
     if(c.fax)     det.push(`<div><b>FAX</b>${esc(c.fax)}</div>`);
     if(c.postal || c.address) det.push(`<div><b>住所</b>${esc((c.postal?("〒"+c.postal+" "):"")+ (c.address||""))}</div>`);
@@ -737,6 +1042,7 @@ function renderList(){
     return `<div class="meishi" data-id="${esc(c.id)}">
       <div class="m-name">${esc(c.name)}${c.kana?`<span class="m-kana">${esc(c.kana)}</span>`:""}</div>
       ${org?`<div class="m-org">${esc(org)}</div>`:""}
+      ${tags.length?`<div class="chips">${tags.map(t=>`<span class="tag-chip">${esc(t)}</span>`).join("")}</div>`:""}
       ${chips.length?`<div class="chips">${chips.join("")}</div>`:""}
       <div class="m-detail hidden">${det.join("")}
         <div class="m-actions">
@@ -768,8 +1074,8 @@ function downloadBlob(blob, filename){
 }
 function exportCSV(){
   if(cards.length===0){ toast("出力する名刺がありません"); return; }
-  const headers = ["氏名","ふりがな","会社名","部署","役職","郵便番号","住所","電話番号","携帯番号","FAX","メールアドレス","URL","メモ","登録日","更新日"];
-  const keys    = ["name","kana","company","dept","title","postal","address","phone","mobile","fax","email","url","memo","createdAt","updatedAt"];
+  const headers = ["氏名","ふりがな","会社名","部署","役職","郵便番号","住所","電話番号","携帯番号","FAX","メールアドレス","URL","タグ","メモ","登録日","更新日"];
+  const keys    = ["name","kana","company","dept","title","postal","address","phone","mobile","fax","email","url","tags","memo","createdAt","updatedAt"];
   const q = v => `"${String(v==null?"":v).replace(/"/g,'""')}"`;
   const rows = [headers.map(q).join(",")];
   cards.forEach(c=>rows.push(keys.map(k=>q(c[k])).join(",")));
@@ -984,6 +1290,9 @@ function onImagePicked(e){
 $("#cameraInput").addEventListener("change", onImagePicked);
 $("#galleryInput").addEventListener("change", onImagePicked);
 $("#ocrBtn").addEventListener("click", runOCR);
+$("#aiBtn").addEventListener("click", runAI);
+$("#aiSaveBtn").addEventListener("click", saveAiKey);
+$("#aiClearBtn").addEventListener("click", clearAiKey);
 $("#manualBtn").addEventListener("click", ()=>{
   resetScanUI();
   $("#formBox").classList.remove("hidden");
@@ -1027,6 +1336,15 @@ if("serviceWorker" in navigator && location.protocol === "https:"){
     if(saved) cards = JSON.parse(saved) || [];
   }catch(e){ cards = []; }
   renderList();
+  // AI設定の復元
+  const savedKey = getAiKey();
+  if(savedKey) $("#aiKey").value = savedKey;
+  const savedModel = store.get(LS_AIMODEL);
+  if(savedModel){
+    const opt = Array.from($("#aiModel").options).find(o=>o.value===savedModel);
+    if(opt) $("#aiModel").value = savedModel;
+  }
+  refreshAiUI();
   // 保存済みFirebase構成があれば自動接続
   const cfgRaw = store.get(LS_FBCFG);
   if(cfgRaw){
