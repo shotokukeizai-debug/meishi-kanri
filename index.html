@@ -280,7 +280,7 @@ pre.code-block{
     <section class="tab" id="tab-settings">
       <div class="card-box">
         <h2 class="sec">🤖 AI読み取り(Google Gemini・無料)</h2>
-        <p class="muted" style="margin-bottom:8px">AIが名刺画像を直接見て、全項目を高精度に抽出します。さらに業種などを推測してタグとメモも自動で付けます。無料枠で使えます。</p>
+        <p class="muted" style="margin-bottom:8px">AIが名刺画像を直接見て、全項目を高精度に抽出し、業種タグとメモも自動で付けます。無料枠で使えます。<b>この端末で1回だけ</b>APIキーを登録すれば、以降はずっと保存されます。</p>
         <label class="fld"><span>Gemini APIキー</span><input type="password" id="aiKey" autocomplete="off" placeholder="AIza... で始まるキー"></label>
         <label class="fld"><span>モデル(通常は変更不要)</span>
           <select id="aiModel" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:15px;font-family:inherit;background:#fff;color:var(--text)">
@@ -311,7 +311,7 @@ pre.code-block{
 
       <div class="card-box">
         <h2 class="sec">☁️ クラウド同期(Firebase)</h2>
-        <p class="muted" style="margin-bottom:8px">スマホとPCで同じデータを使うには、無料のFirebaseに接続します。下の手順で取得した構成(firebaseConfig)を貼り付けてください。</p>
+        <p class="muted" style="margin-bottom:8px">接続先は<b>設定済み</b>です。下でメール・パスワードを登録(初回)またはログインすれば、スマホとPCで自動同期されます。別のFirebaseに変える時だけ構成を上書きしてください。</p>
         <textarea id="fbConfig" placeholder='ここに貼り付け 例:
 {
   "apiKey": "AIza...",
@@ -326,7 +326,7 @@ pre.code-block{
           <button class="btn btn-danger-ghost" id="fbDisconnectBtn">切断</button>
           <button class="btn btn-primary" id="fbConnectBtn">☁️ 接続する</button>
         </div>
-        <div class="status-line" id="fbStatus">未接続(この端末のみに保存されます)</div>
+        <div class="status-line" id="fbStatus">接続準備中...</div>
 
         <div id="loginBox" class="hidden" style="margin-top:14px;border-top:1px dashed var(--border);padding-top:14px">
           <div id="authForms">
@@ -397,10 +397,30 @@ const store = {
   del(k){ try{ localStorage.removeItem(k); }catch(e){} }
 };
 
+/* =====================================================
+   初期設定(このファイルに埋め込み済み)
+   ここを書き換えれば別のプロジェクト/キーに切り替えられます。
+   使わない場合は null にしてください。
+===================================================== */
+const BUILTIN_FIREBASE = {
+  "apiKey": "AIzaSyDq0xF9S6-awxdbS3XRnMQc22YKvGohduQ",
+  "authDomain": "meishi-kanri-kumihp.firebaseapp.com",
+  "projectId": "meishi-kanri-kumihp",
+  "storageBucket": "meishi-kanri-kumihp.firebasestorage.app",
+  "messagingSenderId": "301158718171",
+  "appId": "1:301158718171:web:2c5757bf4bcfe4b9fccafe"
+};
+// Gemini APIキーは秘密の鍵なので、あえて埋め込んでいません。
+// 各端末で設定画面から1回だけ登録すれば、以降その端末に保存されます。
+const BUILTIN_GEMINI_KEY = null;
+const BUILTIN_GEMINI_MODEL = "gemini-flash-latest";
+
 const LS_CARDS = "meishi_cards_v1";
 const LS_FBCFG = "meishi_fb_config_v1";
 const LS_AIKEY = "meishi_ai_key_v1";
 const LS_AIMODEL = "meishi_ai_model_v1";
+const LS_AICLEARED = "meishi_ai_cleared_v1";
+const LS_FBCLEARED = "meishi_fb_cleared_v1";
 
 /* ---------- state ---------- */
 let cards = [];            // {id,name,kana,company,dept,title,phone,mobile,fax,email,url,postal,address,memo,createdAt,updatedAt}
@@ -622,8 +642,20 @@ const AI_SCHEMA = {
   required: Object.keys(AI_FIELD_DESC)
 };
 
-function getAiKey(){ return (store.get(LS_AIKEY)||"").trim(); }
-function getAiModel(){ return store.get(LS_AIMODEL) || "gemini-flash-latest"; }
+function getAiKey(){
+  const saved = (store.get(LS_AIKEY)||"").trim();
+  if(saved) return saved;
+  // 利用者が明示的に削除していなければ、埋め込みキーを使う
+  if(store.get(LS_AICLEARED)) return "";
+  return (BUILTIN_GEMINI_KEY||"").trim();
+}
+function getAiModel(){ return store.get(LS_AIMODEL) || BUILTIN_GEMINI_MODEL || "gemini-flash-latest"; }
+function getFbConfig(){
+  const raw = store.get(LS_FBCFG);
+  if(raw){ try{ return JSON.parse(raw); }catch(e){} }
+  if(store.get(LS_FBCLEARED)) return null;
+  return BUILTIN_FIREBASE || null;
+}
 
 function blobToBase64(blob){
   return new Promise((res,rej)=>{
@@ -801,11 +833,13 @@ function setAiStatus(cls, text){
 }
 function refreshAiUI(){
   const has = !!getAiKey();
-  $("#aiBtn").classList.toggle("hidden", false);
+  const builtin = has && !store.get(LS_AIKEY);
   $("#aiHint").textContent = has
     ? "AI読み取りは通信が必要です。うまくいかない時は通常OCRもお試しください。"
     : "🤖 AIを使うには、設定タブでGemini APIキー(無料)を登録してください。";
-  if(has) setAiStatus("ok", "✅ 設定済み。読み取り画面で「AIで読み取る」が使えます。");
+  if(has) setAiStatus("ok", builtin
+    ? "✅ このアプリに設定済みのキーで、すぐAI読み取りが使えます(別のキーに変えたい時だけ入力し直してください)。"
+    : "✅ 設定済み。読み取り画面で「AIで読み取る」が使えます。");
 }
 async function saveAiKey(){
   const k = $("#aiKey").value.trim();
@@ -813,6 +847,7 @@ async function saveAiKey(){
   if(!k){ setAiStatus("err","APIキーを入力してください"); return; }
   store.set(LS_AIKEY, k);
   store.set(LS_AIMODEL, model);
+  store.del(LS_AICLEARED);
   setAiStatus("", "接続テスト中...");
   // 1x1の白画像で疎通確認(消費はごくわずか)
   const cv = document.createElement("canvas");
@@ -833,6 +868,7 @@ async function saveAiKey(){
 }
 function clearAiKey(){
   store.del(LS_AIKEY);
+  store.set(LS_AICLEARED, "1");   // 埋め込みキーも使わない状態にする
   $("#aiKey").value = "";
   setAiStatus("", "削除しました(通常OCRのみ使えます)");
   refreshAiUI();
@@ -1166,6 +1202,7 @@ async function connectFirebase(cfg, silent){
     fb.db = firebase.firestore();
     fb.auth = firebase.auth();
     store.set(LS_FBCFG, JSON.stringify(cfg));
+    store.del(LS_FBCLEARED);
     $("#loginBox").classList.remove("hidden");
     if(!fb.authWatch){
       fb.authWatch = true;
@@ -1267,6 +1304,7 @@ function disconnectFirebase(){
   stopSync();
   if(fb.auth){ try{ fb.auth.signOut(); }catch(e){} }
   store.del(LS_FBCFG);
+  store.set(LS_FBCLEARED, "1");   // 埋め込み構成でも自動接続しない
   $("#loginBox").classList.add("hidden");
   setSyncBadge("", "ローカル保存");
   setFbStatus("", "切断しました(この端末のみに保存されます)");
@@ -1336,23 +1374,20 @@ if("serviceWorker" in navigator && location.protocol === "https:"){
     if(saved) cards = JSON.parse(saved) || [];
   }catch(e){ cards = []; }
   renderList();
-  // AI設定の復元
+
+  // --- AI設定の復元(埋め込みキーがあればそのまま有効) ---
   const savedKey = getAiKey();
   if(savedKey) $("#aiKey").value = savedKey;
-  const savedModel = store.get(LS_AIMODEL);
-  if(savedModel){
-    const opt = Array.from($("#aiModel").options).find(o=>o.value===savedModel);
-    if(opt) $("#aiModel").value = savedModel;
-  }
+  const savedModel = getAiModel();
+  const opt = Array.from($("#aiModel").options).find(o=>o.value===savedModel);
+  if(opt) $("#aiModel").value = savedModel;
   refreshAiUI();
-  // 保存済みFirebase構成があれば自動接続
-  const cfgRaw = store.get(LS_FBCFG);
-  if(cfgRaw){
-    try{
-      const cfg = JSON.parse(cfgRaw);
-      $("#fbConfig").value = JSON.stringify(cfg, null, 2);
-      connectFirebase(cfg, true);
-    }catch(e){}
+
+  // --- Firebase構成があれば自動接続(埋め込み構成を含む) ---
+  const cfg = getFbConfig();
+  if(cfg){
+    $("#fbConfig").value = JSON.stringify(cfg, null, 2);
+    connectFirebase(cfg, true);
   }
 })();
 </script>
