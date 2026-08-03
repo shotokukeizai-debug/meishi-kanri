@@ -443,8 +443,15 @@ pre.code-block{
         <ol class="steps">
           <li><a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a> をGoogleアカウントで開きます。</li>
           <li>「<b>Create API key</b>(APIキーを作成)」を押します。プロジェクトを選ぶ画面が出たら、そのまま新規作成でOK。</li>
-          <li>表示された <code>AIza...</code> で始まる文字列をコピーして、上の欄に貼り付け →「保存して接続テスト」。</li>
+          <li>表示された <b><code>AIza…</code> で始まる文字列</b>をコピーして、上の欄に貼り付け →「保存して接続テスト」。</li>
           <li>成功したら、読み取り画面に「🤖 AIで読み取る」ボタンが使えるようになります。</li>
+        </ol>
+        <div class="note-box">⚠️ <b>「AQ.」で始まるキーが出てきた場合</b><br>
+          一部のアカウントでは <code>AQ.…</code> という形式のキーが発行されますが、これはGoogle側の不具合でこのAPIから拒否され、<b>401エラー</b>になります。その場合は下の手順で作り直してください。</div>
+        <ol class="steps" style="margin-top:10px">
+          <li><a href="https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com" target="_blank">Google Cloud コンソール</a>を開き、上部でプロジェクトを選択(無ければ新規作成)して「<b>有効にする</b>」を押し、Generative Language API を有効化。</li>
+          <li>左メニュー「<b>APIとサービス</b>」→「<b>認証情報</b>」→ 上部の「<b>+ 認証情報を作成</b>」→「<b>APIキー</b>」。</li>
+          <li>ここで作られるキーは <code>AIza…</code> 形式です。コピーして上の欄に貼り付け、「保存して接続テスト」。</li>
         </ol>
         <div class="safe-box">💡 <b>費用について</b>: 無料枠の範囲内なら課金されません。クレジットカードの登録も不要です。名刺の読み取りは1枚あたりごくわずかな消費なので、個人利用なら無料枠で十分足ります。</div>
         <div class="note-box">🔐 APIキーはこの端末のブラウザ内にのみ保存され、外部には送信されません(Google以外には送られません)。他の人と共有する端末では使わないでください。</div>
@@ -1004,12 +1011,21 @@ function pickGeminiText(json){
   return "";
 }
 
-async function callGemini(images, prompt, onProgress, schema){
+/* 「AIza」で始まらないキーはAPIキーとして拒否されることがある(Google側の既知の問題) */
+function isStdApiKey(k){ return /^AIza[\w\-]{20,}$/.test(String(k||"").trim()); }
+const AUTH_HELP_MSG = "APIキーが認証されませんでした(401)。"
+  + "「AQ.」で始まるキーは、Google側の不具合でこのAPIから拒否されることが知られています。"
+  + "設定画面の手順にしたがって「AIza…」で始まるキーを作り直してください。";
+
+async function callGemini(images, prompt, onProgress, schema, authMode){
   const key = getAiKey();
   if(!key) throw new Error("NO_KEY");
   const model = getAiModel();
   const list = Array.isArray(images) ? images : [images];
   const attempts = buildGeminiRequests(model, list, prompt, schema);
+  const headers = (authMode === "bearer")
+    ? { "Content-Type":"application/json", "Authorization":"Bearer " + key }
+    : { "Content-Type":"application/json", "x-goog-api-key":key };
   let lastErr = "";
   for(const at of attempts){
     if(onProgress) onProgress(at.label);
@@ -1017,7 +1033,7 @@ async function callGemini(images, prompt, onProgress, schema){
     try{
       res = await fetch(at.url, {
         method:"POST",
-        headers:{ "Content-Type":"application/json", "x-goog-api-key":key },
+        headers,
         body: JSON.stringify(at.body)
       });
     }catch(e){
@@ -1031,10 +1047,17 @@ async function callGemini(images, prompt, onProgress, schema){
       const msg = (json && json.error && json.error.message) || txt.slice(0,200);
       // キー自体が無効なら次の形式を試しても無駄なので即終了
       if(res.status === 400 && /API key not valid|API_KEY_INVALID/i.test(msg)) throw new Error("APIキーが正しくありません。設定画面で確認してください。");
+      // 認証されない: 一度だけ別の渡し方(Bearer)で試し、それでも駄目なら案内を出す
+      if(res.status === 401){
+        if(authMode !== "bearer" && !isStdApiKey(key)){
+          return callGemini(images, prompt, onProgress, schema, "bearer");
+        }
+        throw new Error(AUTH_HELP_MSG);
+      }
       // thinking設定が受け付けられないAPIなら、その設定を諦めて即やり直す
       if(res.status === 400 && isThinkingConfigError(msg) && !store.get(LS_NOTHINKCFG)){
         store.set(LS_NOTHINKCFG, "1");
-        return callGemini(images, prompt, onProgress, schema);
+        return callGemini(images, prompt, onProgress, schema, authMode);
       }
       if(res.status === 403) throw new Error("APIキーが拒否されました(権限をご確認ください): " + msg);
       if(res.status === 429) throw new Error("無料枠の上限に達したようです。しばらく待ってからお試しください。");
@@ -1507,12 +1530,14 @@ function setAiStatus(cls, text){
   el.className = "status-line" + (cls ? " "+cls : "");
   el.textContent = text;
 }
-function refreshAiUI(){
+/* keepStatus: 接続テストの結果表示を上書きしたくない時に true */
+function refreshAiUI(keepStatus){
   const has = !!getAiKey();
   const builtin = has && !store.get(LS_AIKEY);
   $("#aiHint").textContent = has
     ? "AI読み取りは通信が必要です。うまくいかない時は通常OCRもお試しください。"
     : "🤖 AIを使うには、設定タブでGemini APIキー(無料)を登録してください。";
+  if(keepStatus) return;
   if(has) setAiStatus("ok", builtin
     ? "✅ このアプリに設定済みのキーで、すぐAI読み取りが使えます(別のキーに変えたい時だけ入力し直してください)。"
     : "✅ 設定済み。読み取り画面で「AIで読み取る」が使えます。");
@@ -1524,6 +1549,11 @@ async function saveAiKey(){
   store.set(LS_AIKEY, k);
   store.set(LS_AIMODEL, model);
   store.del(LS_AICLEARED);
+  if(!isStdApiKey(k)){
+    setAiStatus("err","⚠️ このキーは「AIza…」の形式ではありません。"
+      + (/^AQ\./.test(k) ? "「AQ.」で始まるキーはGoogle側の不具合で拒否されることが知られています。" : "")
+      + "下の手順で作り直すと確実です。まず接続テストを行います...");
+  }
   setAiStatus("", "接続テスト中...");
   // 1x1の白画像で疎通確認(消費はごくわずか)
   const cv = document.createElement("canvas");
@@ -1538,10 +1568,13 @@ async function saveAiKey(){
     setAiStatus("ok","✅ 接続できました。読み取り画面で「AIで読み取る」が使えます。");
     toast("AI読み取りを有効にしました 🤖");
   }catch(e){
-    setAiStatus("err","接続テストに失敗: " + (e.message||e));
+    const m = (e && e.message) || String(e);
+    setAiStatus("err", m === AUTH_HELP_MSG ? m : ("接続テストに失敗: " + m));
     toast("接続テストに失敗しました");
+    refreshAiUI(true);      // 失敗表示を消さない
+    return;
   }
-  refreshAiUI();
+  refreshAiUI(true);
 }
 function clearAiKey(){
   store.del(LS_AIKEY);
