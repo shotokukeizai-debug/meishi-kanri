@@ -160,6 +160,15 @@ label.fld.filled span::after{content:" ✓ 読取";color:var(--accent);font-size
 }
 .tag-filter button.on{background:#f3f0ff;border-color:#b197fc;color:#5f3dc4}
 .tag-empty{font-size:12.5px;color:var(--text-sub);padding:6px 2px}
+/* 設定済みの表示行 */
+.saved-row{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:#f4f7ff;border:1px solid var(--border);border-radius:11px;
+  padding:11px 13px;margin-bottom:10px;font-size:13.5px;
+}
+.saved-row .sv-main{min-width:0;word-break:break-all}
+.saved-row .sv-main b{color:var(--primary-dark)}
+.saved-row .sv-sub{display:block;font-size:11.5px;color:var(--text-sub);margin-top:2px}
 
 /* ---------- 五十音バー(電話帳風) ---------- */
 .list-wrap{display:flex;gap:8px;align-items:flex-start}
@@ -347,6 +356,7 @@ pre.code-block{
           <button class="btn btn-outline" id="galleryBtn"><span class="big-ico">🖼️</span>画像を選ぶ<br><span style="font-size:11px;font-weight:400">複数まとめてOK</span></button>
         </div>
         <button class="btn btn-outline btn-block" id="videoBtn" style="margin-top:8px">🎥 動画から読み取る(まとめて撮影)</button>
+        <p class="muted" style="margin-top:6px;text-align:center;font-size:11.5px">名刺1枚につき1秒ほど静止させて、ゆっくり動かして撮ると読み取りやすくなります</p>
         <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
         <input type="file" id="galleryInput" accept="image/*" multiple class="hidden">
         <input type="file" id="videoInput" accept="video/*" class="hidden">
@@ -422,7 +432,17 @@ pre.code-block{
       <div class="card-box">
         <h2 class="sec">🤖 AI読み取り(Google Gemini・無料)</h2>
         <p class="muted" style="margin-bottom:8px">AIが名刺画像を直接見て、全項目を高精度に抽出し、業種タグとメモも自動で付けます。無料枠で使えます。<b>この端末で1回だけ</b>APIキーを登録すれば、以降はずっと保存されます。</p>
-        <label class="fld"><span>Gemini APIキー</span><input type="password" id="aiKey" autocomplete="off" placeholder="AIza... で始まるキー"></label>
+        <div class="saved-row hidden" id="aiSummary">
+          <span class="sv-main">🔑 APIキー: <b>登録済み</b><span class="sv-sub" id="aiKeyHint"></span></span>
+          <button type="button" class="btn btn-ghost btn-sm" id="aiChangeBtn">変更</button>
+        </div>
+        <div id="aiEditWrap">
+          <label class="fld"><span>Gemini APIキー</span><input type="password" id="aiKey" autocomplete="off" placeholder="AIza... で始まるキー"></label>
+          <div class="form-actions">
+            <button type="button" class="btn btn-ghost hidden" id="aiCancelEditBtn">やめる</button>
+            <button class="btn btn-ai" id="aiSaveBtn">🤖 保存して接続テスト</button>
+          </div>
+        </div>
         <label class="fld"><span>モデル(通常は変更不要)</span>
           <select id="aiModel" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:15px;font-family:inherit;background:#fff;color:var(--text)">
             <option value="gemini-flash-latest">最新のFlash(自動・推奨)</option>
@@ -432,8 +452,7 @@ pre.code-block{
           </select>
         </label>
         <div class="form-actions">
-          <button class="btn btn-danger-ghost" id="aiClearBtn">削除</button>
-          <button class="btn btn-ai" id="aiSaveBtn">🤖 保存して接続テスト</button>
+          <button type="button" class="btn btn-danger-ghost" id="aiClearBtn">キーを削除</button>
         </div>
         <div class="status-line" id="aiStatus">未設定(通常OCRのみ使えます)</div>
       </div>
@@ -459,7 +478,12 @@ pre.code-block{
 
       <div class="card-box">
         <h2 class="sec">☁️ クラウド同期(Firebase)</h2>
-        <p class="muted" style="margin-bottom:8px">接続先は<b>設定済み</b>です。下でメール・パスワードを登録(初回)またはログインすれば、スマホとPCで自動同期されます。別のFirebaseに変える時だけ構成を上書きしてください。</p>
+        <p class="muted" style="margin-bottom:8px">接続先は<b>設定済み</b>です。下でメール・パスワードを登録(初回)またはログインすれば、スマホとPCで自動同期されます。別のFirebaseに変えたい時だけ「変更」を押してください。</p>
+        <div class="saved-row hidden" id="fbSummary">
+          <span class="sv-main">☁️ 接続先: <b id="fbProject"></b><span class="sv-sub">設定済みです。触らなくて大丈夫です。</span></span>
+          <button type="button" class="btn btn-ghost btn-sm" id="fbChangeBtn">変更</button>
+        </div>
+        <div id="fbEditWrap">
         <textarea id="fbConfig" placeholder='ここに貼り付け 例:
 {
   "apiKey": "AIza...",
@@ -471,8 +495,12 @@ pre.code-block{
 }
 ※ const firebaseConfig = {...}; の形のままでもOK'></textarea>
         <div class="form-actions">
-          <button class="btn btn-danger-ghost" id="fbDisconnectBtn">切断</button>
+          <button type="button" class="btn btn-ghost hidden" id="fbCancelEditBtn">やめる</button>
           <button class="btn btn-primary" id="fbConnectBtn">☁️ 接続する</button>
+        </div>
+        </div>
+        <div class="form-actions" style="margin-top:4px">
+          <button type="button" class="btn btn-danger-ghost" id="fbDisconnectBtn">切断</button>
         </div>
         <div class="status-line" id="fbStatus">接続準備中...</div>
 
@@ -522,6 +550,7 @@ service cloud.firestore {
           <li>読み取り結果は必ず確認・修正してから保存してください(OCRは完璧ではありません)。</li>
           <li>「CSV出力」でExcelでそのまま開けるCSV(UTF-8 BOM付き)をダウンロードできます。</li>
           <li>OCRとクラウド同期にはインターネット接続が必要です。</li>
+          <li><b>複数の名刺を1枚の写真に並べて</b>撮っても大丈夫です。AIが1人ずつ切り分け、名刺ごとに画像をトリミングして保存します。</li>
           <li><b>アプリとしてインストール</b>: iPhoneはSafariで開いて「共有」→「ホーム画面に追加」、AndroidはChromeのメニュー→「アプリをインストール」。アイコンから全画面アプリとして起動できます。</li>
         </ol>
       </div>
@@ -879,9 +908,13 @@ const AI_CARD_SCHEMA_SRC = {
   type:"object",
   properties: Object.assign(
     Object.fromEntries(Object.keys(AI_FIELD_DESC).map(k=>[k,{type:"string"}])),
-    { sourceImage:{ type:"integer" } }
+    {
+      sourceImage:{ type:"integer" },
+      // 画像内での名刺の位置。0〜1000に正規化した [上, 左, 下, 右]
+      box:{ type:"array", items:{ type:"integer" } }
+    }
   ),
-  required: Object.keys(AI_FIELD_DESC).concat(["sourceImage"])
+  required: Object.keys(AI_FIELD_DESC).concat(["sourceImage","box"])
 };
 const AI_MULTI_SCHEMA = {
   type:"object",
@@ -895,6 +928,7 @@ const AI_MULTI_PROMPT = `あなたは名刺情報を正確に読み取る専門�
 各名刺の項目:
 ${Object.entries(AI_FIELD_DESC).map(([k,v])=>`- ${k}: ${v}`).join("\n")}
 - sourceImage: その名刺が最もはっきり写っている画像の番号(1枚目なら1、2枚目なら2)。必ず数値で答えること。
+- box: sourceImageで指定した画像の中で、その名刺が占める長方形の範囲。[上, 左, 下, 右] の順に、画像の高さ・幅を0〜1000に正規化した整数4つで答えること。名刺の四辺のふちを含む最小の長方形にすること。画像全体に1枚だけ写っている場合は [0, 0, 1000, 1000] としてよい。
 
 重要なルール:
 - 同じ名刺が複数の画像やコマに写っている場合は、1件にまとめること(重複させない)。最も鮮明に写っているものを採用する。
@@ -1134,78 +1168,167 @@ function colorDist(a, b){
 
 async function extractVideoFrames(file, opts, onProgress){
   // similarityRatio: ハッシュ全体のうち何割違えば「別のコマ」とみなすか(小さいほど別物と判定しやすい)
-  const o = Object.assign({ maxFrames:8, interval:0.4, similarityRatio:0.012, colorTolerance:6, maxWidth:1280 }, opts||{});
+  const o = Object.assign({ maxFrames:8, similarityRatio:0.012, colorTolerance:6, maxWidth:1280 }, opts||{});
   const video = document.createElement("video");
   video.preload = "auto";
   video.muted = true;
+  video.defaultMuted = true;
+  video.volume = 0;
   video.playsInline = true;
   video.setAttribute("playsinline","");
+  video.setAttribute("webkit-playsinline","");
   video.setAttribute("muted","");
-  // iOSなどではDOMに入っていないとシークできないことがあるため、見えない状態で一時的に追加
-  video.style.cssText = "position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:0.01;pointer-events:none";
+  // 画面に無いとデコード/シークできない端末があるため、見えない状態で一時的に追加する
+  video.style.cssText = "position:fixed;left:0;top:0;width:2px;height:2px;opacity:0.01;pointer-events:none;z-index:-1";
   document.body.appendChild(video);
   const url = URL.createObjectURL(file);
   video.src = url;
 
   const cleanup = ()=>{
+    try{ video.pause(); }catch(e){}
     try{ URL.revokeObjectURL(url); }catch(e){}
     try{ video.removeAttribute("src"); video.load(); }catch(e){}
     if(video.parentNode) video.parentNode.removeChild(video);
   };
 
+  // --- 読み込み待ち(データが実際に来るまで待つ) ---
   try{
     await new Promise((res, rej)=>{
       let done = false;
       const finish = fn => { if(!done){ done = true; fn(); } };
-      const ok = ()=>finish(res);
-      video.onloadedmetadata = ok;
+      const ok = ()=>{ if(video.readyState >= 2) finish(res); };
       video.onloadeddata = ok;
+      video.oncanplay = ok;
+      video.onloadedmetadata = ()=>{ if(video.readyState >= 2) finish(res); };
       video.onerror = ()=>finish(()=>{
         const code = video.error && video.error.code;
         rej(new Error(code === 4
-          ? "この形式の動画にブラウザが対応していません。別の形式で撮影・保存してお試しください"
-          : "動画を読み込めませんでした"));
+          ? "この形式の動画をブラウザが再生できません。撮影アプリの設定を「互換性優先(H.264)」にするか、別の動画でお試しください"
+          : "動画を読み込めませんでした(ファイルが壊れている可能性があります)"));
       });
-      setTimeout(()=>finish(res), 10000);
+      try{ video.load(); }catch(e){}
+      setTimeout(()=>finish(res), 15000);
     });
   }catch(e){ cleanup(); throw e; }
 
   const dur = isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
   if(!dur){ cleanup(); throw new Error("動画の長さを取得できませんでした(対応していない形式の可能性があります)"); }
-
-  // サンプリング位置(最大40点)
-  let times = [];
-  const step = Math.max(o.interval, dur/40);
-  for(let t = Math.min(0.15, dur*0.05); t < dur; t += step) times.push(t);
-  if(times.length === 0) times = [dur/2];
+  if(video.readyState < 2){
+    cleanup();
+    throw new Error("動画のデータを読み込めませんでした。別の形式で保存してお試しください");
+  }
 
   const vw = video.videoWidth || 640, vh = video.videoHeight || 480;
   const scale = Math.min(1, o.maxWidth/Math.max(vw,vh));
   const cw = Math.max(2, Math.round(vw*scale)), ch = Math.max(2, Math.round(vh*scale));
   const cv = document.createElement("canvas");
   cv.width = cw; cv.height = ch;
-  const ctx = cv.getContext("2d");
+  const ctx = cv.getContext("2d", { willReadFrequently:true });
 
-  const cand = [];
-  for(let i=0;i<times.length;i++){
-    if(onProgress) onProgress(i+1, times.length);
-    const okSeek = await new Promise(res=>{
-      let settled = false;
-      const fin = ()=>{ if(!settled){ settled = true; res(true); } };
-      video.onseeked = fin;
-      try{ video.currentTime = times[i]; }catch(e){ res(false); return; }
-      setTimeout(()=>{ if(!settled){ settled = true; res(true); } }, 1200);
-    });
-    if(!okSeek) continue;
-    try{ ctx.drawImage(video, 0, 0, cw, ch); }catch(e){ continue; }
+  // 描いたコマが真っ黒/真っ白(=デコード前)でないか確かめる
+  const grabFrame = (time)=>{
+    try{ ctx.drawImage(video, 0, 0, cw, ch); }catch(e){ return null; }
     let st;
-    try{ st = frameStats(cv); }catch(e){ continue; }
-    const dataUrl = cv.toDataURL("image/jpeg", 0.85);
-    cand.push({ time: times[i], sharpness: st.sharpness, hash: st.hash, color: st.color, dataUrl });
+    try{ st = frameStats(cv); }catch(e){ return null; }
+    if(!(st.sharpness > 0.5)) return null;      // のっぺりしたコマは捨てる
+    return { time, sharpness:st.sharpness, hash:st.hash, color:st.color,
+             dataUrl: cv.toDataURL("image/jpeg", 0.85) };
+  };
+  const nextPaint = ()=>new Promise(res=>{
+    if(video.requestVideoFrameCallback){
+      let done=false;
+      video.requestVideoFrameCallback(()=>{ if(!done){done=true;res();} });
+      setTimeout(()=>{ if(!done){done=true;res();} }, 400);
+    }else{
+      setTimeout(res, 120);
+    }
+  });
+
+  /* --- 方式A: シークして取り出す(速い) --- */
+  async function collectBySeek(){
+    const out = [];
+    const points = Math.min(20, Math.max(4, Math.ceil(dur/0.5)));
+    let miss = 0;
+    for(let i=0;i<points;i++){
+      const t = Math.min(dur - 0.05, dur * (i + 0.5) / points);
+      if(onProgress) onProgress(i+1, points, "seek");
+      const before = video.currentTime;
+      const seeked = await new Promise(res=>{
+        let settled = false;
+        const fin = v=>{ if(!settled){ settled = true; res(v); } };
+        video.onseeked = ()=>fin(true);
+        try{ video.currentTime = t; }catch(e){ return fin(false); }
+        // そもそも位置が変わらない(シーク非対応)なら待たずに打ち切る
+        if(Math.abs(video.currentTime - t) > 0.25 && Math.abs(video.currentTime - before) < 0.01){
+          setTimeout(()=>fin(false), 250);
+        }
+        setTimeout(()=>fin(false), 1200);
+      });
+      if(!seeked){
+        // 最初の数回が続けて失敗するなら、この方式は使えないと判断して即やめる
+        if(++miss >= 2 && out.length === 0) return out;
+        continue;
+      }
+      miss = 0;
+      await nextPaint();
+      let f = grabFrame(video.currentTime);
+      if(!f){ await nextPaint(); f = grabFrame(video.currentTime); }   // 一度だけ待ち直す
+      if(f) out.push(f);
+    }
+    return out;
+  }
+
+  /* --- 方式B: 再生しながら取り出す(シークできない端末向け) --- */
+  async function collectByPlayback(){
+    const out = [];
+    const want = o.maxFrames * 3;
+    const interval = Math.max(0.2, dur / want);
+    let last = -999;
+    try{ video.currentTime = 0; }catch(e){}
+    try{ video.playbackRate = 2; }catch(e){}
+    try{ await video.play(); }catch(e){ return out; }   // 再生できなければ諦める
+    await new Promise(res=>{
+      let finished = false;
+      const done = ()=>{ if(!finished){ finished = true; res(); } };
+      const step = ()=>{
+        if(finished) return;
+        if(video.ended || video.paused || out.length >= want) return done();
+        const t = video.currentTime;
+        if(t - last >= interval){
+          last = t;
+          const f = grabFrame(t);
+          if(f) out.push(f);
+          if(onProgress) onProgress(out.length, want, "play");
+        }
+        if(video.requestVideoFrameCallback) video.requestVideoFrameCallback(step);
+        else requestAnimationFrame(step);
+      };
+      video.onended = done;
+      if(video.requestVideoFrameCallback) video.requestVideoFrameCallback(step);
+      else requestAnimationFrame(step);
+      setTimeout(done, Math.min(90000, (dur/2 + 5) * 1000));
+    });
+    try{ video.pause(); }catch(e){}
+    return out;
+  }
+
+  let cand = await collectBySeek();
+  let how = "seek";
+  // シークで十分に取れなければ、再生しながらの取り込みに切り替える
+  if(cand.length < 2){
+    if(onProgress) onProgress(0, 1, "switch");
+    const played = await collectByPlayback();
+    if(played.length > cand.length){ cand = played; how = "play"; }
   }
   cleanup();
-  if(cand.length === 0) throw new Error("動画からコマを取り出せませんでした");
 
+  if(cand.length === 0){
+    // 原因の切り分けができるよう、動画の状態も添える
+    throw new Error("動画からコマを取り出せませんでした。写真で撮るか、短い動画でお試しください"
+      + `(参考: ${Math.round(dur)}秒 / ${vw}x${vh} / 状態${video.readyState})`);
+  }
+
+  /* --- 使うコマを選ぶ --- */
   // ブレすぎのコマを除外(全体の中央値の40%未満は捨てる)
   const sorted = cand.map(c=>c.sharpness).sort((a,b)=>a-b);
   const median = sorted[Math.floor(sorted.length/2)] || 0;
@@ -1218,11 +1341,10 @@ async function extractVideoFrames(file, opts, onProgress){
   const picksByTime = [];
   for(let i=0;i<buckets;i++){
     const from = dur*i/buckets, to = dur*(i+1)/buckets;
-    const inBucket = usable.filter(c=>c.time >= from && (i===buckets-1 ? c.time <= to : c.time < to));
+    const inBucket = usable.filter(c=>c.time >= from && (i===buckets-1 ? c.time <= to+0.001 : c.time < to));
     if(inBucket.length === 0) continue;
     picksByTime.push(inBucket.reduce((a,b)=>b.sharpness>a.sharpness?b:a));
   }
-  // 区間分割で拾えなかった分は、鮮明な順に補充
   let picks = picksByTime.slice();
   if(picks.length < Math.min(o.maxFrames, usable.length)){
     const rest = usable.filter(c=>!picks.includes(c)).sort((a,b)=>b.sharpness-a.sharpness);
@@ -1241,19 +1363,21 @@ async function extractVideoFrames(file, opts, onProgress){
     if(dup){ if(c.sharpness > dup.sharpness) Object.assign(dup, c); }
     else uniq.push(c);
   }
-  picks = uniq.sort((a,b)=>a.time-b.time);
-  return Promise.all(picks.map(async p=>{
+  picks = uniq.sort((a,b)=>a.time-b.time).slice(0, o.maxFrames);
+
+  const frames = await Promise.all(picks.map(async p=>{
     const blob = await (await fetch(p.dataUrl)).blob();
     return { blob, time:p.time, dataUrl:p.dataUrl };
   }));
+  frames.how = how;
+  return frames;
 }
-
-/* 読み取り結果に対応する元画像(圧縮済みdataURL)を作る */
+/* 読み取り結果に対応する画像(その名刺の部分だけを切り抜いた圧縮dataURL)を作る */
 async function imageForCard(c){
   const idx = (c && typeof c.__imgIdx === "number") ? c.__imgIdx : 0;
   const src = pickedImages[idx] || pickedImages[0];
   if(!src) return "";
-  return await makeCardImage(src.blob).catch(()=>"");
+  return await makeCardImage(src.blob, c && c.__box).catch(()=>"");
 }
 
 function cleanCard(data){
@@ -1337,6 +1461,7 @@ async function runAI(){
           let si = parseInt(raw && raw.sourceImage, 10);
           si = (isFinite(si) && si >= 1 && si <= chunks[ci].length) ? offset + si - 1 : offset;
           c.__imgIdx = si;
+          if(Array.isArray(raw && raw.box)) c.__box = raw.box;   // 名刺の位置(切り抜き用)
           cards.push(c);
         });
       });
@@ -1480,12 +1605,13 @@ async function saveBatch(){
   let saved = 0;
   for(const b of picks){
     const data = Object.assign({}, b.card);
-    const imgIdx = data.__imgIdx;
-    delete data.__imgIdx;
+    const imgIdx = data.__imgIdx, box = data.__box;
+    delete data.__imgIdx; delete data.__box;
     data.id = uid();
     data.createdAt = nowStr();
     data.updatedAt = data.createdAt;
-    const img = await imageForCard({ __imgIdx: imgIdx });
+    // その名刺の部分だけを切り抜いて保存する
+    const img = await imageForCard({ __imgIdx: imgIdx, __box: box });
     if(img) await attachImage(data, img);
     cards.unshift(data);
     saved++;
@@ -1530,6 +1656,42 @@ function setAiStatus(cls, text){
   el.className = "status-line" + (cls ? " "+cls : "");
   el.textContent = text;
 }
+/* 設定済みのときは入力欄を隠し、「登録済み」表示にする(誤って消さないように) */
+function maskKey(k){
+  const s = String(k||"");
+  return s.length > 8 ? s.slice(0,4) + "••••" + s.slice(-4) : "••••";
+}
+function updateAiSummary(){
+  const has = !!getAiKey();
+  const editing = !$("#aiEditWrap").classList.contains("hidden") && !has;
+  $("#aiSummary").classList.toggle("hidden", !has);
+  $("#aiEditWrap").classList.toggle("hidden", has);
+  $("#aiCancelEditBtn").classList.add("hidden");
+  if(has) $("#aiKeyHint").textContent = maskKey(getAiKey());
+}
+function updateFbSummary(){
+  const cfg = getFbConfig();
+  const has = !!(cfg && cfg.projectId);
+  $("#fbSummary").classList.toggle("hidden", !has);
+  $("#fbEditWrap").classList.toggle("hidden", has);
+  $("#fbCancelEditBtn").classList.add("hidden");
+  if(has) $("#fbProject").textContent = cfg.projectId;
+}
+function openAiEdit(){
+  $("#aiKey").value = "";
+  $("#aiEditWrap").classList.remove("hidden");
+  $("#aiSummary").classList.add("hidden");
+  $("#aiCancelEditBtn").classList.remove("hidden");
+  $("#aiKey").focus();
+}
+function openFbEdit(){
+  $("#fbConfig").value = "";
+  $("#fbEditWrap").classList.remove("hidden");
+  $("#fbSummary").classList.add("hidden");
+  $("#fbCancelEditBtn").classList.remove("hidden");
+  $("#fbConfig").focus();
+}
+
 /* keepStatus: 接続テストの結果表示を上書きしたくない時に true */
 function refreshAiUI(keepStatus){
   const has = !!getAiKey();
@@ -1567,6 +1729,7 @@ async function saveAiKey(){
       null, { type:"object", properties:{ ok:{type:"string"} }, required:["ok"] });
     setAiStatus("ok","✅ 接続できました。読み取り画面で「AIで読み取る」が使えます。");
     toast("AI読み取りを有効にしました 🤖");
+    updateAiSummary();
   }catch(e){
     const m = (e && e.message) || String(e);
     setAiStatus("err", m === AUTH_HELP_MSG ? m : ("接続テストに失敗: " + m));
@@ -1581,6 +1744,7 @@ function clearAiKey(){
   store.set(LS_AICLEARED, "1");   // 埋め込みキーも使わない状態にする
   $("#aiKey").value = "";
   setAiStatus("", "削除しました(通常OCRのみ使えます)");
+  updateAiSummary();
   refreshAiUI();
   toast("APIキーを削除しました");
 }
@@ -1856,18 +2020,49 @@ function persistLocal(){
     return rest;
   })));
 }
-/* 名刺画像を保存用に圧縮(長辺800px) */
-function makeCardImage(blob){
+/* AIが返した位置([上,左,下,右] 0〜1000)を、実際の切り抜き範囲に変換する。
+   おかしな値なら null を返して画像全体を使う。 */
+function boxToRect(box, w, h){
+  if(!Array.isArray(box) || box.length !== 4) return null;
+  let [top, left, bottom, right] = box.map(v=>Number(v));
+  if(![top,left,bottom,right].every(v=>isFinite(v))) return null;
+  // 上下・左右が逆でも受け付ける
+  if(top > bottom) [top, bottom] = [bottom, top];
+  if(left > right) [left, right] = [right, left];
+  top = Math.max(0, Math.min(1000, top));   left = Math.max(0, Math.min(1000, left));
+  bottom = Math.max(0, Math.min(1000, bottom)); right = Math.max(0, Math.min(1000, right));
+  const bw = right - left, bh = bottom - top;
+  if(bw < 60 || bh < 40) return null;                 // 小さすぎる = 誤り
+  if(bw >= 985 && bh >= 985) return null;             // ほぼ全体 = 切り抜き不要
+  // 少し余白を足す(枠ぎりぎりで文字が切れるのを防ぐ)
+  const padX = bw * 0.03, padY = bh * 0.04;
+  const x0 = Math.max(0, (left - padX)) / 1000 * w;
+  const y0 = Math.max(0, (top - padY)) / 1000 * h;
+  const x1 = Math.min(1000, (right + padX)) / 1000 * w;
+  const y1 = Math.min(1000, (bottom + padY)) / 1000 * h;
+  const rect = { x:Math.round(x0), y:Math.round(y0), w:Math.round(x1-x0), h:Math.round(y1-y0) };
+  if(rect.w < 40 || rect.h < 30) return null;
+  return rect;
+}
+
+/* 名刺画像を保存用に圧縮(長辺800px)。box が指定されていればその部分だけ切り抜く。 */
+function makeCardImage(blob, box){
   return new Promise(resolve=>{
     if(!blob) return resolve("");
     const img = new Image();
     const url = URL.createObjectURL(blob);
     img.onload = ()=>{
-      const max = 800, s = Math.min(1, max/Math.max(img.width, img.height));
-      const w = Math.max(1, Math.round(img.width*s)), h = Math.max(1, Math.round(img.height*s));
+      const rect = boxToRect(box, img.width, img.height)
+                || { x:0, y:0, w:img.width, h:img.height };
+      const max = 800, s = Math.min(1, max/Math.max(rect.w, rect.h));
+      const w = Math.max(1, Math.round(rect.w*s)), h = Math.max(1, Math.round(rect.h*s));
       const cv = document.createElement("canvas");
       cv.width = w; cv.height = h;
-      cv.getContext("2d").drawImage(img, 0, 0, w, h);
+      try{
+        cv.getContext("2d").drawImage(img, rect.x, rect.y, rect.w, rect.h, 0, 0, w, h);
+      }catch(e){
+        URL.revokeObjectURL(url); return resolve("");
+      }
       URL.revokeObjectURL(url);
       try{ resolve(cv.toDataURL("image/jpeg", 0.68)); }catch(e){ resolve(""); }
     };
@@ -2274,6 +2469,7 @@ async function connectFirebase(cfg, silent){
     fb.auth = firebase.auth();
     store.set(LS_FBCFG, JSON.stringify(cfg));
     store.del(LS_FBCLEARED);
+    updateFbSummary();
     $("#loginBox").classList.remove("hidden");
     if(!fb.authWatch){
       fb.authWatch = true;
@@ -2299,7 +2495,10 @@ async function connectFirebase(cfg, silent){
     console.error(err);
     fb.connected = false;
     setSyncBadge("err","接続エラー");
-    setFbStatus("err","接続に失敗しました: " + (err.message||err) + " — 構成の内容をご確認ください。");
+    const em = String((err && err.message) || err);
+    setFbStatus("err", /SDK読込失敗/.test(em)
+      ? "接続に失敗しました: Firebaseの読み込みができませんでした。通信環境をご確認のうえ、しばらくしてから開き直してください。"
+      : "接続に失敗しました: " + em + " — 構成の内容をご確認ください。");
     if(!silent) toast("接続に失敗しました");
   }
 }
@@ -2384,6 +2583,8 @@ function disconnectFirebase(){
   store.del(LS_FBCFG);
   store.set(LS_FBCLEARED, "1");   // 埋め込み構成でも自動接続しない
   $("#loginBox").classList.add("hidden");
+  $("#fbConfig").value = "";
+  updateFbSummary();
   setSyncBadge("", "ローカル保存");
   setFbStatus("", "切断しました(この端末のみに保存されます)");
   toast("同期を停止しました");
@@ -2410,9 +2611,13 @@ $("#videoInput").addEventListener("change", async e=>{
   const fill = $("#progressFill"), ptext = $("#progressText");
   fill.style.width = "5%"; ptext.textContent = "動画を読み込んでいます...";
   try{
-    const frames = await extractVideoFrames(f, {}, (i,total)=>{
-      fill.style.width = (5 + 85*i/total) + "%";
-      ptext.textContent = `動画を解析しています... (${i}/${total})`;
+    const frames = await extractVideoFrames(f, {}, (i,total,mode)=>{
+      fill.style.width = (5 + 85*Math.min(1, i/Math.max(1,total))) + "%";
+      ptext.textContent = mode === "play"
+        ? `動画を再生しながら取り込んでいます... (${i}コマ)`
+        : mode === "switch"
+          ? "別の方法で取り込み直しています..."
+          : `動画を解析しています... (${i}/${total})`;
     });
     fill.style.width = "100%";
     ptext.textContent = `${frames.length}コマを抽出しました`;
@@ -2479,6 +2684,14 @@ $("#fbConnectBtn").addEventListener("click", ()=>{
   connectFirebase(cfg, false);
 });
 $("#fbDisconnectBtn").addEventListener("click", disconnectFirebase);
+$("#fbChangeBtn").addEventListener("click", openFbEdit);
+$("#fbCancelEditBtn").addEventListener("click", ()=>{ $("#fbConfig").value=""; updateFbSummary(); });
+$("#aiChangeBtn").addEventListener("click", openAiEdit);
+$("#aiCancelEditBtn").addEventListener("click", ()=>{ $("#aiKey").value=""; updateAiSummary(); });
+$("#aiModel").addEventListener("change", ()=>{      // モデルだけの変更もその場で保存
+  store.set(LS_AIMODEL, $("#aiModel").value);
+  toast("モデルを変更しました");
+});
 $("#loginBtn").addEventListener("click", ()=>doAuth(false));
 $("#signupBtn").addEventListener("click", ()=>doAuth(true));
 $("#logoutBtn").addEventListener("click", ()=>{ if(fb.auth) fb.auth.signOut(); toast("ログアウトしました"); });
@@ -2517,19 +2730,17 @@ if("serviceWorker" in navigator && location.protocol === "https:"){
   hydrateImages(2);
 
   // --- AI設定の復元(埋め込みキーがあればそのまま有効) ---
-  const savedKey = getAiKey();
-  if(savedKey) $("#aiKey").value = savedKey;
   const savedModel = getAiModel();
   const opt = Array.from($("#aiModel").options).find(o=>o.value===savedModel);
   if(opt) $("#aiModel").value = savedModel;
   refreshAiUI();
+  updateAiSummary();
 
   // --- Firebase構成があれば自動接続(埋め込み構成を含む) ---
+  // 入力欄には表示しない。誤って消してしまわないよう「設定済み」とだけ出す。
+  updateFbSummary();
   const cfg = getFbConfig();
-  if(cfg){
-    $("#fbConfig").value = JSON.stringify(cfg, null, 2);
-    connectFirebase(cfg, true);
-  }
+  if(cfg) connectFirebase(cfg, true);
 })();
 </script>
 </body>
