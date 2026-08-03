@@ -160,6 +160,36 @@ label.fld.filled span::after{content:" ✓ 読取";color:var(--accent);font-size
 }
 .tag-filter button.on{background:#f3f0ff;border-color:#b197fc;color:#5f3dc4}
 .tag-empty{font-size:12.5px;color:var(--text-sub);padding:6px 2px}
+/* ---------- 選択モード ---------- */
+.sel-bar{
+  position:sticky;top:104px;z-index:40;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;
+  background:var(--primary);color:#fff;border-radius:12px;
+  padding:10px 12px;margin-bottom:10px;box-shadow:var(--shadow);
+}
+.sel-bar .sel-count{font-size:13.5px;font-weight:700;white-space:nowrap}
+.sel-bar .sel-actions{display:flex;gap:6px;flex-wrap:wrap}
+.sel-bar button{
+  border:none;border-radius:8px;padding:7px 11px;font-size:12.5px;font-weight:600;
+  cursor:pointer;font-family:inherit;background:rgba(255,255,255,.18);color:#fff;
+}
+.sel-bar button.danger{background:#fff;color:var(--danger)}
+.sel-bar button.danger:disabled{opacity:.45;cursor:default}
+.meishi .m-check{
+  flex:none;width:22px;height:22px;margin-top:12px;accent-color:var(--primary);
+}
+.meishi.picked{background:#eef3ff;border-left-color:var(--accent)}
+#undoBar{
+  position:fixed;left:50%;bottom:22px;transform:translateX(-50%);
+  display:flex;align-items:center;gap:12px;z-index:120;
+  background:#232a3d;color:#fff;border-radius:999px;padding:10px 14px 10px 18px;
+  box-shadow:0 4px 16px rgba(0,0,0,.3);font-size:13.5px;max-width:92vw;
+}
+#undoBar button{
+  border:none;background:#fff;color:var(--text);border-radius:999px;
+  padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;
+}
+
 /* 設定済みの表示行 */
 .saved-row{
   display:flex;align-items:center;justify-content:space-between;gap:10px;
@@ -335,10 +365,22 @@ pre.code-block{
 
       <div class="toolbar">
         <button class="btn btn-accent btn-sm" id="csvBtn">📄 CSV出力</button>
+        <button class="btn btn-ghost btn-sm" id="selectModeBtn">☑️ 選んで削除</button>
         <button class="btn btn-ghost btn-sm" id="jsonExportBtn">💾 バックアップ</button>
         <button class="btn btn-ghost btn-sm" id="jsonImportBtn">📥 復元</button>
         <input type="file" id="jsonImportFile" accept=".json,application/json" class="hidden">
       </div>
+
+      <div class="sel-bar hidden" id="selBar">
+        <span class="sel-count" id="selCount">0件を選択中</span>
+        <div class="sel-actions">
+          <button type="button" id="selAllBtn">表示中をすべて選択</button>
+          <button type="button" id="selNoneBtn">解除</button>
+          <button type="button" class="danger" id="selDeleteBtn" disabled>🗑 削除</button>
+          <button type="button" id="selCancelBtn">やめる</button>
+        </div>
+      </div>
+
       <div class="count-line" id="countLine"></div>
 
       <div class="list-wrap">
@@ -557,6 +599,10 @@ service cloud.firestore {
     </section>
   </main>
 </div>
+<div id="undoBar" class="hidden">
+  <span id="undoText"></span>
+  <button type="button" id="undoBtn">元に戻す</button>
+</div>
 <div id="imgViewer">
   <div class="vtitle" id="viewerTitle"></div>
   <img id="viewerImg" alt="名刺画像">
@@ -682,6 +728,10 @@ let pickedImages = [];          // 読み取り対象の画像(複数可)
 let batchResults = [];          // 一括読み取りの結果
 let batchEditIndex = -1;        // 一括結果を編集中のindex
 let pendingImage = null;        // 単票フォームで保存待ちの名刺画像(dataURL)
+let selectMode = false;         // 一括削除のための選択モード
+let selectedIds = new Set();
+let lastDeleted = null;         // 取り消し用に直前の削除内容を保持
+let undoTimer = null;
 let searchMode = "keyword";     // keyword | tag | kana
 let selectedTags = [];
 let kanaRow = "";               // 選択中の五十音の行
@@ -2121,6 +2171,7 @@ async function deleteCard(id){
   const c = cards.find(x=>x.id===id);
   if(!c) return;
   if(!confirm(`「${c.name}」を削除しますか?`)) return;
+  lastDeleted = [Object.assign({}, c)];      // 1件でも取り消せるようにする
   cards = cards.filter(x=>x.id!==id);
   persistLocal();
   idbDel(id);
@@ -2129,7 +2180,7 @@ async function deleteCard(id){
     try{ await userCol().doc(id).delete(); }
     catch(e){ console.error(e); }
   }
-  toast("削除しました");
+  showUndo("1件を削除しました");
 }
 function editCard(id){
   const c = cards.find(x=>x.id===id);
@@ -2232,6 +2283,7 @@ function renderList(){
   renderKanaRail();
   const list = $("#cardList");
   const filtered = filterCards();
+  updateSelBar(filtered);
   const active = (searchMode==="keyword" && ($("#searchBox").value||"").trim())
               || (searchMode==="tag" && selectedTags.length)
               || (searchMode==="kana" && kanaRow);
@@ -2262,7 +2314,12 @@ function renderList(){
     const thumb = c.image
       ? `<div class="m-thumb" data-img="${esc(c.id)}"><img src="${esc(c.image)}" alt="${esc(c.name)}の名刺"></div>`
       : `<div class="m-noimg" title="画像なし">📇</div>`;
-    return `<div class="meishi" data-id="${esc(c.id)}">
+    const picked = selectedIds.has(c.id);
+    const checkbox = selectMode
+      ? `<input type="checkbox" class="m-check" data-check="${esc(c.id)}"${picked?" checked":""}>`
+      : "";
+    return `<div class="meishi${picked&&selectMode?" picked":""}" data-id="${esc(c.id)}">
+      ${checkbox}
       ${thumb}
       <div class="m-main">
         <div class="m-name">${esc(c.name)}${c.kana?`<span class="m-kana">${esc(c.kana)}</span>`:""}</div>
@@ -2310,12 +2367,109 @@ $("#cardList").addEventListener("click", e=>{
   const item = e.target.closest(".meishi");
   if(!item) return;
   const id = item.dataset.id;
+  // 選択モード中はカードのどこを押しても選択の切り替えにする
+  if(selectMode){
+    if(e.target.closest("a")) return;
+    if(!e.target.closest(".m-check")) e.preventDefault();
+    toggleSelect(id, !selectedIds.has(id));
+    return;
+  }
   if(e.target.closest(".act-edit")){ editCard(id); return; }
   if(e.target.closest(".act-del")){ deleteCard(id); return; }
   if(e.target.closest("a")) return; // tel/mailto リンクは通常動作
   if(e.target.closest(".m-thumb")){ openViewer(id); return; }
   item.querySelector(".m-detail").classList.toggle("hidden");
 });
+
+/* =====================================================
+   選択して一括削除
+===================================================== */
+function toggleSelect(id, on){
+  if(on) selectedIds.add(id); else selectedIds.delete(id);
+  renderList();
+}
+function updateSelBar(filtered){
+  $("#selBar").classList.toggle("hidden", !selectMode);
+  if(!selectMode) return;
+  // 表示されていない名刺の選択は解除しておく(意図しない削除を防ぐ)
+  const visible = new Set(filtered.map(c=>c.id));
+  [...selectedIds].forEach(id=>{ if(!visible.has(id)) selectedIds.delete(id); });
+  const n = selectedIds.size;
+  $("#selCount").textContent = `${n}件を選択中`;
+  $("#selDeleteBtn").disabled = n === 0;
+  $("#selDeleteBtn").textContent = n ? `🗑 ${n}件を削除` : "🗑 削除";
+}
+function setSelectMode(on){
+  selectMode = on;
+  selectedIds.clear();
+  $("#selectModeBtn").textContent = on ? "✖️ 選択をやめる" : "☑️ 選んで削除";
+  renderList();
+}
+$("#selectModeBtn").addEventListener("click", ()=>{
+  if(!selectMode && cards.length === 0){ toast("削除する名刺がありません"); return; }
+  setSelectMode(!selectMode);
+});
+$("#selCancelBtn").addEventListener("click", ()=>setSelectMode(false));
+$("#selAllBtn").addEventListener("click", ()=>{
+  filterCards().forEach(c=>selectedIds.add(c.id));
+  renderList();
+});
+$("#selNoneBtn").addEventListener("click", ()=>{ selectedIds.clear(); renderList(); });
+
+async function deleteSelected(){
+  const ids = [...selectedIds];
+  if(ids.length === 0) return;
+  const targets = cards.filter(c=>ids.includes(c.id));
+  const names = targets.slice(0,3).map(c=>c.name||"(名前なし)").join("、");
+  const more = targets.length > 3 ? ` ほか${targets.length-3}件` : "";
+  if(!confirm(`${targets.length}件の名刺を削除します。\n${names}${more}\n\nよろしいですか?`)) return;
+
+  lastDeleted = targets.map(c=>Object.assign({}, c));   // 取り消し用に控える
+  cards = cards.filter(c=>!ids.includes(c.id));
+  persistLocal();
+  ids.forEach(id=>idbDel(id));
+  setSelectMode(false);
+  if(fb.connected && fb.user){
+    for(const id of ids){
+      try{ await userCol().doc(id).delete(); }catch(e){ console.error(e); }
+    }
+  }
+  showUndo(`${targets.length}件を削除しました`);
+}
+$("#selDeleteBtn").addEventListener("click", deleteSelected);
+
+/* ---------- 削除の取り消し ---------- */
+function showUndo(text){
+  if(!lastDeleted || lastDeleted.length === 0) return;
+  $("#undoText").textContent = text;
+  $("#undoBar").classList.remove("hidden");
+  clearTimeout(undoTimer);
+  undoTimer = setTimeout(hideUndo, 12000);   // 12秒だけ戻せる
+}
+function hideUndo(){
+  $("#undoBar").classList.add("hidden");
+  lastDeleted = null;
+}
+async function undoDelete(){
+  if(!lastDeleted || lastDeleted.length === 0) return hideUndo();
+  const restored = lastDeleted;
+  lastDeleted = null;
+  clearTimeout(undoTimer);
+  $("#undoBar").classList.add("hidden");
+  for(const c of restored){
+    if(!cards.some(x=>x.id===c.id)) cards.unshift(c);
+    if(c.image) await idbSet(c.id, c.image);
+  }
+  persistLocal();
+  renderList();
+  if(fb.connected && fb.user){
+    for(const c of restored){
+      try{ await userCol().doc(c.id).set(c); }catch(e){ console.error(e); }
+    }
+  }
+  toast(`${restored.length}件を元に戻しました`);
+}
+$("#undoBtn").addEventListener("click", undoDelete);
 
 /* ---------- 検索モードの切り替え ---------- */
 $("#modeTabs").addEventListener("click", e=>{
