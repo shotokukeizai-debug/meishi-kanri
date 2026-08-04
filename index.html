@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-theme="default">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>名刺管理 - Meishi Manager</title>
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#3b5bdb">
+<meta name="theme-color" content="#3b5bdb" id="metaThemeColor">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -14,35 +14,159 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js"></script>
 <style>
-:root{
-  --primary:#3b5bdb;
-  --primary-dark:#2f4bc0;
-  --primary-light:#edf2ff;
-  --accent:#0ca678;
-  --danger:#e03131;
-  --bg:#f4f6fb;
-  --card:#ffffff;
-  --text:#1a2233;
-  --text-sub:#68738a;
-  --border:#e2e6f0;
-  --radius:14px;
+/* =====================================================
+   テーマ(見た目)の定義
+   色・角丸・影・書体をすべて変数にまとめてあるので、
+   html の data-theme を切り替えるだけで全体の印象が変わる。
+===================================================== */
+:root, html[data-theme="default"]{
+  --primary:#3b5bdb;  --primary-dark:#2f4bc0;  --primary-light:#edf2ff;
+  --accent:#0ca678;   --danger:#e03131;
+  --bg:#f4f6fb;       --card:#ffffff;          --input-bg:#ffffff;
+  --text:#1a2233;     --text-sub:#68738a;      --border:#e2e6f0;
+  --placeholder:#c3c9d8;  --hint:#aab2c5;
+  --header-grad:linear-gradient(135deg,#3b5bdb,#5f3dc4);
+  --header-text:#ffffff;
+  --tab-bg:rgba(255,255,255,.14);  --tab-text:#e7ecff;
+  --ai-grad:linear-gradient(135deg,#7048e8,#4263eb);
+  --tag-bg:#f3f0ff;   --tag-text:#5f3dc4;      --tag-border:#d0bfff;
+  --warn-bg:#fff9db;  --warn-text:#5c4d00;     --warn-border:#ffe066;
+  --ok-bg:#e6fcf5;    --ok-text:#087f5b;       --ok-border:#63e6be;
+  --danger-bg:#fff0f0;
+  --dup-bg:#fffaf0;   --dup-border:#ffd8a8;    --dup-text:#e8590c;
+  --picked-bg:#eef3ff;
+  --mode-bg:#e8ecf6;  --mode-active:#ffffff;
+  --rail-bg:rgba(255,255,255,.85);
+  --saved-bg:#f4f7ff;
+  --thumb-bg:#eef1f7;
+  --pre-bg:#f1f3f9;
+  --code-bg:#232a3d;  --code-text:#d8e2ff;
+  --toast-bg:#232a3d; --toast-text:#ffffff;
+  --filled-bg:#f4fffb;
+  --overlay:rgba(12,16,30,.9);
+  --radius:14px;      --radius-sm:10px;        --radius-xs:8px;
   --shadow:0 2px 10px rgba(30,40,80,.08);
+  --shadow-lg:0 4px 16px rgba(0,0,0,.25);
+  --font:"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP","Yu Gothic UI",Meiryo,sans-serif;
+  --title-weight:700;  --title-spacing:.02em;
 }
+
+/* ---------- クール(ダーク) ---------- */
+html[data-theme="cool"]{
+  --primary:#4dabf7;  --primary-dark:#74c0fc;  --primary-light:#1b2942;
+  --accent:#20c997;   --danger:#ff6b6b;
+  --bg:#0f1320;       --card:#181d2c;          --input-bg:#111624;
+  --text:#e8ecf6;     --text-sub:#8b96ad;      --border:#2a3145;
+  --placeholder:#4a5468;  --hint:#5b6479;
+  --header-grad:linear-gradient(135deg,#0b1a33,#132b4d 55%,#0d3a4a);
+  --header-text:#eaf4ff;
+  --tab-bg:rgba(255,255,255,.07);  --tab-text:#9fb3cc;
+  --ai-grad:linear-gradient(135deg,#3bc9db,#4c6ef5);
+  --tag-bg:#1d2b45;   --tag-text:#74c0fc;      --tag-border:#2f4468;
+  --warn-bg:#332a12;  --warn-text:#ffd43b;     --warn-border:#5c4a17;
+  --ok-bg:#0f3029;    --ok-text:#63e6be;       --ok-border:#1d5a4a;
+  --danger-bg:#3a1c1f;
+  --dup-bg:#332616;   --dup-border:#6b4d1f;    --dup-text:#ffa94d;
+  --picked-bg:#1c2a44;
+  --mode-bg:#141a29;  --mode-active:#242c40;
+  --rail-bg:rgba(24,29,44,.9);
+  --saved-bg:#151d2e;
+  --thumb-bg:#222939;
+  --pre-bg:#111624;
+  --code-bg:#0b0f19;  --code-text:#a9c7ff;
+  --toast-bg:#e8ecf6; --toast-text:#0f1320;
+  --filled-bg:#10261f;
+  --overlay:rgba(0,0,0,.93);
+  --radius:10px;      --radius-sm:8px;         --radius-xs:6px;
+  --shadow:0 2px 12px rgba(0,0,0,.45);
+  --shadow-lg:0 6px 22px rgba(0,0,0,.6);
+  --title-spacing:.08em;
+}
+
+/* ---------- かわいい(パステル) ---------- */
+html[data-theme="cute"]{
+  --primary:#f06595;  --primary-dark:#d6336c;  --primary-light:#ffe9f1;
+  --accent:#38d9a9;   --danger:#fa5252;
+  --bg:#fff5f8;       --card:#ffffff;          --input-bg:#fffafc;
+  --text:#5a3a48;     --text-sub:#856374;      --border:#ffdce8;
+  --placeholder:#d9a8bd;  --hint:#c795ab;
+  --header-grad:linear-gradient(135deg,#ffa8c5,#f783ac 45%,#b197fc);
+  --header-text:#ffffff;
+  --tab-bg:rgba(255,255,255,.28);  --tab-text:#fff3f7;
+  --ai-grad:linear-gradient(135deg,#f783ac,#b197fc);
+  --tag-bg:#fff0f6;   --tag-text:#c2255c;      --tag-border:#ffc9dd;
+  --warn-bg:#fff8e6;  --warn-text:#946200;     --warn-border:#ffe3a3;
+  --ok-bg:#e6fff6;    --ok-text:#0b8a63;       --ok-border:#9be8cd;
+  --danger-bg:#fff0f0;
+  --dup-bg:#fff6ec;   --dup-border:#ffd9b0;    --dup-text:#e8730c;
+  --picked-bg:#ffeef5;
+  --mode-bg:#ffe6ef;  --mode-active:#ffffff;
+  --rail-bg:rgba(255,255,255,.9);
+  --saved-bg:#fff7fa;
+  --thumb-bg:#ffeef4;
+  --pre-bg:#fff4f8;
+  --code-bg:#5a3a48;  --code-text:#ffe9f1;
+  --toast-bg:#7b4a5e; --toast-text:#ffffff;
+  --filled-bg:#effffa;
+  --overlay:rgba(90,58,72,.88);
+  --radius:20px;      --radius-sm:16px;        --radius-xs:12px;
+  --shadow:0 3px 14px rgba(240,101,149,.16);
+  --shadow-lg:0 6px 22px rgba(240,101,149,.3);
+  --font:"Hiragino Maru Gothic ProN","M PLUS Rounded 1c","Rounded Mplus 1c",
+         "Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;
+  --title-spacing:.04em;
+}
+
+/* ---------- 和モダン ---------- */
+html[data-theme="wa"]{
+  --primary:#1f3a5f;  --primary-dark:#16293f;  --primary-light:#eceff5;
+  --accent:#9a7b28;   --danger:#a5341f;
+  --bg:#f6f3ec;       --card:#fffdf7;          --input-bg:#fffdf7;
+  --text:#22221f;     --text-sub:#6f6a5e;      --border:#ddd6c6;
+  --placeholder:#c2bbab;  --hint:#a89f8c;
+  --header-grad:linear-gradient(135deg,#16293f,#1f3a5f 60%,#2c4a6b);
+  --header-text:#f6f3ec;
+  --tab-bg:rgba(255,255,255,.12);  --tab-text:#dfe5ee;
+  --ai-grad:linear-gradient(135deg,#2c4a6b,#1f3a5f);
+  --tag-bg:#f2ede0;   --tag-text:#7a5f16;      --tag-border:#ddd0ab;
+  --warn-bg:#fbf3dd;  --warn-text:#7a5a12;     --warn-border:#e3cf9a;
+  --ok-bg:#eaf1ea;    --ok-text:#3f6b46;       --ok-border:#aac6ad;
+  --danger-bg:#f8ebe7;
+  --dup-bg:#f9f0e2;   --dup-border:#e0cba0;    --dup-text:#96631a;
+  --picked-bg:#eceff5;
+  --mode-bg:#ece7da;  --mode-active:#fffdf7;
+  --rail-bg:rgba(255,253,247,.92);
+  --saved-bg:#f4f1e8;
+  --thumb-bg:#eee9dc;
+  --pre-bg:#f2ede2;
+  --code-bg:#22221f;  --code-text:#e6e0d0;
+  --toast-bg:#22221f; --toast-text:#f6f3ec;
+  --filled-bg:#f0f5ef;
+  --overlay:rgba(20,20,18,.92);
+  --radius:6px;       --radius-sm:5px;         --radius-xs:4px;
+  --shadow:0 1px 6px rgba(60,50,30,.14);
+  --shadow-lg:0 4px 18px rgba(40,35,20,.4);
+  --font:"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP","Sawarabi Mincho",serif;
+  --title-weight:600;  --title-spacing:.14em;
+}
+
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
 body{
-  font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP","Yu Gothic UI",Meiryo,sans-serif;
+  font-family:var(--font);
   background:var(--bg);color:var(--text);font-size:15px;line-height:1.6;
+  transition:background .2s,color .2s;
 }
 .app{max-width:680px;margin:0 auto;min-height:100%;display:flex;flex-direction:column}
 header.appbar{
   position:sticky;top:0;z-index:50;
-  background:linear-gradient(135deg,#3b5bdb,#5f3dc4);
-  color:#fff;padding:14px 18px 10px;
+  background:var(--header-grad);
+  color:var(--header-text);padding:14px 18px 10px;
   border-radius:0 0 18px 18px;box-shadow:var(--shadow);
 }
+html[data-theme="wa"] header.appbar{border-radius:0}
 .appbar-row{display:flex;align-items:center;justify-content:space-between}
-.appbar h1{font-size:19px;font-weight:700;letter-spacing:.02em}
+.appbar h1{font-size:19px;font-weight:var(--title-weight);letter-spacing:var(--title-spacing)}
 .sync-badge{
   font-size:11px;padding:4px 10px;border-radius:999px;
   background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);
@@ -53,9 +177,9 @@ header.appbar{
 .sync-badge.err .dot{background:#ffa8a8}
 nav.tabs{display:flex;gap:6px;margin-top:12px}
 nav.tabs button{
-  flex:1;border:none;background:rgba(255,255,255,.14);color:#e7ecff;
-  padding:9px 4px;border-radius:10px 10px 0 0;font-size:13.5px;font-weight:600;
-  cursor:pointer;transition:.15s;
+  flex:1;border:none;background:var(--tab-bg);color:var(--tab-text);
+  padding:9px 4px;border-radius:var(--radius-sm) var(--radius-sm) 0 0;font-size:13.5px;font-weight:600;
+  cursor:pointer;transition:.15s;font-family:inherit;
 }
 nav.tabs button.active{background:var(--bg);color:var(--primary)}
 main{flex:1;padding:16px 14px 90px}
@@ -68,50 +192,54 @@ section.tab.show{display:block;animation:fade .18s ease}
 h2.sec{font-size:15px;font-weight:700;margin-bottom:10px;color:var(--primary-dark);display:flex;align-items:center;gap:6px}
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:6px;
-  border:none;border-radius:10px;padding:11px 16px;font-size:14.5px;font-weight:600;
+  border:none;border-radius:var(--radius-sm);padding:11px 16px;font-size:14.5px;font-weight:600;
   cursor:pointer;transition:.15s;font-family:inherit;
 }
 .btn:active{transform:scale(.97)}
 .btn-primary{background:var(--primary);color:#fff}
-.btn-primary:hover{background:var(--primary-dark)}
+.btn-primary:hover{filter:brightness(1.08)}
 .btn-accent{background:var(--accent);color:#fff}
-.btn-outline{background:#fff;color:var(--primary);border:1.5px solid var(--primary)}
+.btn-outline{background:var(--card);color:var(--primary);border:1.5px solid var(--primary)}
 .btn-ghost{background:var(--primary-light);color:var(--primary-dark)}
-.btn-danger-ghost{background:#fff0f0;color:var(--danger)}
-.btn-sm{padding:7px 12px;font-size:13px;border-radius:8px}
+.btn-danger-ghost{background:var(--danger-bg);color:var(--danger)}
+.btn-sm{padding:7px 12px;font-size:13px;border-radius:var(--radius-xs)}
 .btn-block{width:100%}
 .btn[disabled]{opacity:.5;pointer-events:none}
+html[data-theme="cool"] .btn-primary{color:#0b1020}
+html[data-theme="cool"] .btn-accent{color:#08211a}
 input[type=text],input[type=tel],input[type=email],input[type=url],input[type=password],textarea{
-  width:100%;border:1.5px solid var(--border);border-radius:10px;
-  padding:10px 12px;font-size:15px;font-family:inherit;background:#fff;color:var(--text);
+  width:100%;border:1.5px solid var(--border);border-radius:var(--radius-sm);
+  padding:10px 12px;font-size:15px;font-family:inherit;background:var(--input-bg);color:var(--text);
   transition:border-color .15s;
 }
 input:focus,textarea:focus{outline:none;border-color:var(--primary)}
-input::placeholder,textarea::placeholder{color:#c3c9d8;font-style:italic;opacity:1}
+input::placeholder,textarea::placeholder{color:var(--placeholder);font-style:italic;opacity:1}
 label.fld{display:block;margin-bottom:10px}
 label.fld span{display:block;font-size:12px;font-weight:600;color:var(--text-sub);margin-bottom:4px}
-label.fld span i{font-weight:400;font-style:normal;color:#aab2c5;font-size:11px;margin-left:6px}
-label.fld.filled input,label.fld.filled textarea{font-weight:600}
-label.fld.filled input,label.fld.filled textarea{border-color:var(--accent);background:#f4fffb}
+label.fld span i{font-weight:400;font-style:normal;color:var(--hint);font-size:11px;margin-left:6px}
+label.fld.filled input,label.fld.filled textarea{
+  font-weight:600;border-color:var(--accent);background:var(--filled-bg);
+}
 label.fld.filled span::after{content:" ✓ 読取";color:var(--accent);font-size:11px;margin-left:4px}
 .extract-summary{
-  font-size:13px;border-radius:10px;padding:9px 12px;margin-bottom:12px;
+  font-size:13px;border-radius:var(--radius-sm);padding:9px 12px;margin-bottom:12px;
   background:var(--primary-light);color:var(--primary-dark);
 }
-.extract-summary.warn{background:#fff9db;color:#5c4d00}
-.btn-ai{background:linear-gradient(135deg,#7048e8,#4263eb);color:#fff}
+.extract-summary.warn{background:var(--warn-bg);color:var(--warn-text)}
+.btn-ai{background:var(--ai-grad);color:#fff}
 .btn-ai:hover{filter:brightness(1.08)}
+html[data-theme="cool"] .btn-ai{color:#08131f}
 .tag-chip{
-  font-size:11.5px;background:#f3f0ff;color:#5f3dc4;border:1px solid #d0bfff;
+  font-size:11.5px;background:var(--tag-bg);color:var(--tag-text);border:1px solid var(--tag-border);
   padding:2px 9px;border-radius:999px;white-space:nowrap;
 }
 .ai-badge{
-  display:inline-block;font-size:10.5px;background:#f3f0ff;color:#5f3dc4;
+  display:inline-block;font-size:10.5px;background:var(--tag-bg);color:var(--tag-text);
   border-radius:5px;padding:1px 6px;margin-left:6px;vertical-align:middle;font-weight:600;
 }
 /* サムネイル */
 .thumbs{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
-.thumb{position:relative;width:88px;height:64px;border-radius:8px;overflow:hidden;box-shadow:var(--shadow);background:#e9ecf3}
+.thumb{position:relative;width:88px;height:64px;border-radius:var(--radius-xs);overflow:hidden;box-shadow:var(--shadow);background:var(--thumb-bg)}
 .thumb img{width:100%;height:100%;object-fit:cover}
 .thumb .rm{
   position:absolute;top:2px;right:2px;width:20px;height:20px;border:none;border-radius:50%;
@@ -124,122 +252,148 @@ label.fld.filled span::after{content:" ✓ 読取";color:var(--accent);font-size
 /* 一括結果 */
 .batch-item{
   display:flex;gap:10px;align-items:flex-start;
-  border:1.5px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:9px;background:#fff;
+  border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:9px;background:var(--card);
 }
-.batch-item.dup{background:#fffaf0;border-color:#ffd8a8}
+.batch-item.dup{background:var(--dup-bg);border-color:var(--dup-border)}
 .batch-item input[type=checkbox]{width:20px;height:20px;margin-top:2px;flex:none;accent-color:var(--primary)}
 .batch-item .bi-body{flex:1;min-width:0;display:block}
 .batch-item .bi-name{display:block;font-weight:700;font-size:15px;line-height:1.35}
 .batch-item .bi-sub{display:block;font-size:12.5px;color:var(--text-sub);margin-top:2px;word-break:break-all;line-height:1.45}
-.batch-item .bi-warn{display:block;font-size:11.5px;color:#e8590c;margin-top:4px}
+.batch-item .bi-warn{display:block;font-size:11.5px;color:var(--dup-text);margin-top:4px}
 .batch-item .bi-edit{
   border:none;background:var(--primary-light);color:var(--primary-dark);
-  border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;flex:none;font-family:inherit;
+  border-radius:var(--radius-xs);padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;flex:none;font-family:inherit;
 }
 .batch-tools{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
 
 /* ---------- 検索モード切替 ---------- */
-.mode-tabs{display:flex;gap:4px;background:#e8ecf6;border-radius:11px;padding:3px;margin-bottom:10px}
+.mode-tabs{display:flex;gap:4px;background:var(--mode-bg);border-radius:var(--radius-sm);padding:3px;margin-bottom:10px}
 .mode-tabs button{
   flex:1;border:none;background:transparent;color:var(--text-sub);
-  padding:8px 4px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;
+  padding:8px 4px;border-radius:var(--radius-xs);font-size:13px;font-weight:600;cursor:pointer;
   font-family:inherit;transition:.15s;white-space:nowrap;
 }
-.mode-tabs button.active{background:#fff;color:var(--primary-dark);box-shadow:0 1px 3px rgba(30,40,80,.12)}
+.mode-tabs button.active{background:var(--mode-active);color:var(--primary-dark);box-shadow:var(--shadow)}
 .sort-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
 .sort-row label{font-size:12px;color:var(--text-sub);font-weight:600;white-space:nowrap}
 .sort-row select{
-  flex:1;border:1.5px solid var(--border);border-radius:9px;padding:8px 10px;
-  font-size:13.5px;font-family:inherit;background:#fff;color:var(--text);
+  flex:1;border:1.5px solid var(--border);border-radius:var(--radius-xs);padding:8px 10px;
+  font-size:13.5px;font-family:inherit;background:var(--input-bg);color:var(--text);
 }
 .tag-filter{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px}
 .tag-filter button{
-  border:1.5px solid var(--border);background:#fff;color:var(--text-sub);
+  border:1.5px solid var(--border);background:var(--card);color:var(--text-sub);
   border-radius:999px;padding:6px 13px;font-size:12.5px;font-weight:600;
   cursor:pointer;font-family:inherit;transition:.15s;
 }
-.tag-filter button.on{background:#f3f0ff;border-color:#b197fc;color:#5f3dc4}
+.tag-filter button.on{background:var(--tag-bg);border-color:var(--tag-border);color:var(--tag-text)}
 .tag-empty{font-size:12.5px;color:var(--text-sub);padding:6px 2px}
+
 /* ---------- 選択モード ---------- */
 .sel-bar{
   position:sticky;top:104px;z-index:40;
   display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;
-  background:var(--primary);color:#fff;border-radius:12px;
+  background:var(--primary);color:#fff;border-radius:var(--radius-sm);
   padding:10px 12px;margin-bottom:10px;box-shadow:var(--shadow);
 }
+html[data-theme="cool"] .sel-bar{color:#0b1020}
 .sel-bar .sel-count{font-size:13.5px;font-weight:700;white-space:nowrap}
 .sel-bar .sel-actions{display:flex;gap:6px;flex-wrap:wrap}
 .sel-bar button{
-  border:none;border-radius:8px;padding:7px 11px;font-size:12.5px;font-weight:600;
-  cursor:pointer;font-family:inherit;background:rgba(255,255,255,.18);color:#fff;
+  border:none;border-radius:var(--radius-xs);padding:7px 11px;font-size:12.5px;font-weight:600;
+  cursor:pointer;font-family:inherit;background:rgba(255,255,255,.2);color:inherit;
 }
-.sel-bar button.danger{background:#fff;color:var(--danger)}
+.sel-bar button.danger{background:var(--card);color:var(--danger)}
 .sel-bar button.danger:disabled{opacity:.45;cursor:default}
 .meishi .m-check{
   flex:none;width:22px;height:22px;margin-top:12px;accent-color:var(--primary);
 }
-.meishi.picked{background:#eef3ff;border-left-color:var(--accent)}
+.meishi.picked{background:var(--picked-bg);border-left-color:var(--accent)}
 #undoBar{
   position:fixed;left:50%;bottom:22px;transform:translateX(-50%);
   display:flex;align-items:center;gap:12px;z-index:120;
-  background:#232a3d;color:#fff;border-radius:999px;padding:10px 14px 10px 18px;
-  box-shadow:0 4px 16px rgba(0,0,0,.3);font-size:13.5px;max-width:92vw;
+  background:var(--toast-bg);color:var(--toast-text);border-radius:999px;padding:10px 14px 10px 18px;
+  box-shadow:var(--shadow-lg);font-size:13.5px;max-width:92vw;
 }
 #undoBar button{
-  border:none;background:#fff;color:var(--text);border-radius:999px;
+  border:none;background:var(--primary);color:#fff;border-radius:999px;
   padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;
 }
+html[data-theme="cool"] #undoBar button{color:#0b1020}
 
 /* 設定済みの表示行 */
 .saved-row{
   display:flex;align-items:center;justify-content:space-between;gap:10px;
-  background:#f4f7ff;border:1px solid var(--border);border-radius:11px;
+  background:var(--saved-bg);border:1px solid var(--border);border-radius:var(--radius-sm);
   padding:11px 13px;margin-bottom:10px;font-size:13.5px;
 }
 .saved-row .sv-main{min-width:0;word-break:break-all}
 .saved-row .sv-main b{color:var(--primary-dark)}
 .saved-row .sv-sub{display:block;font-size:11.5px;color:var(--text-sub);margin-top:2px}
 
+/* ---------- テーマ選択 ---------- */
+.theme-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.theme-card{
+  border:2px solid var(--border);border-radius:var(--radius-sm);padding:10px;
+  background:var(--card);cursor:pointer;text-align:left;font-family:inherit;
+  display:flex;flex-direction:column;gap:8px;transition:.15s;
+}
+.theme-card.on{border-color:var(--primary);box-shadow:var(--shadow)}
+.theme-card .tc-name{font-size:13.5px;font-weight:700;color:var(--text)}
+.theme-card .tc-desc{font-size:11px;color:var(--text-sub);line-height:1.4}
+.theme-card .tc-prev{height:44px;border-radius:var(--radius-xs);overflow:hidden;display:flex;flex-direction:column}
+.theme-card .tc-bar{height:16px}
+.theme-card .tc-body{flex:1;display:flex;align-items:center;gap:4px;padding:0 6px}
+.theme-card .tc-dot{width:12px;height:12px;border-radius:999px}
+.theme-card .tc-line{height:5px;border-radius:999px;flex:1}
+
 /* ---------- 五十音バー(電話帳風) ---------- */
 .list-wrap{display:flex;gap:8px;align-items:flex-start}
 .kana-rail{
   flex:none;width:30px;position:sticky;top:118px;
   display:flex;flex-direction:column;gap:2px;
-  background:rgba(255,255,255,.85);border-radius:10px;padding:4px 2px;
+  background:var(--rail-bg);border-radius:var(--radius-sm);padding:4px 2px;
   box-shadow:var(--shadow);backdrop-filter:blur(4px);
 }
 .kana-rail button{
   border:none;background:transparent;color:var(--primary-dark);
-  font-size:12.5px;font-weight:700;padding:4px 0;border-radius:6px;
+  font-size:12.5px;font-weight:700;padding:4px 0;border-radius:var(--radius-xs);
   cursor:pointer;font-family:inherit;line-height:1.1;
 }
 .kana-rail button.on{background:var(--primary);color:#fff}
-.kana-rail button.dim{color:#c3c9d8}
+html[data-theme="cool"] .kana-rail button.on{color:#0b1020}
+.kana-rail button.dim{color:var(--placeholder)}
 .list-body{flex:1;min-width:0}
 
 /* ---------- 一覧のサムネイル ---------- */
 .meishi{display:flex;gap:11px;align-items:flex-start}
 .m-main{flex:1;min-width:0}
 .m-thumb{
-  flex:none;width:74px;height:48px;border-radius:7px;overflow:hidden;
-  background:#eef1f7;border:1px solid var(--border);cursor:zoom-in;
+  flex:none;width:74px;height:48px;border-radius:var(--radius-xs);overflow:hidden;
+  background:var(--thumb-bg);border:1px solid var(--border);cursor:zoom-in;
 }
 .m-thumb img{width:100%;height:100%;object-fit:cover;display:block}
 .m-noimg{
-  flex:none;width:74px;height:48px;border-radius:7px;border:1px dashed var(--border);
-  display:flex;align-items:center;justify-content:center;color:#c3c9d8;font-size:17px;
+  flex:none;width:74px;height:48px;border-radius:var(--radius-xs);border:1px dashed var(--border);
+  display:flex;align-items:center;justify-content:center;color:var(--placeholder);font-size:17px;
 }
 
 /* ---------- 画像ビューア ---------- */
 #imgViewer{
-  position:fixed;inset:0;background:rgba(12,16,30,.9);z-index:200;
+  position:fixed;inset:0;background:var(--overlay);z-index:200;
   display:none;align-items:center;justify-content:center;flex-direction:column;gap:14px;padding:18px;
 }
 #imgViewer.show{display:flex}
-#imgViewer img{max-width:100%;max-height:76vh;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+#imgViewer img{max-width:100%;max-height:70vh;border-radius:var(--radius-sm);box-shadow:0 8px 30px rgba(0,0,0,.5)}
 #imgViewer .vtitle{color:#fff;font-size:14px;font-weight:600;text-align:center}
+#imgViewer .vtools{display:flex;gap:10px}
+#imgViewer .vtools button{
+  border:none;background:rgba(255,255,255,.16);color:#fff;border-radius:var(--radius-sm);
+  padding:10px 16px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;
+}
+#imgViewer .vtools button:active{background:rgba(255,255,255,.3)}
 #imgViewer .vclose{
-  border:none;background:#fff;color:var(--text);border-radius:10px;
+  border:none;background:#fff;color:#1a2233;border-radius:var(--radius-sm);
   padding:10px 22px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;
 }
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -248,7 +402,7 @@ label.fld.filled span::after{content:" ✓ 読取";color:var(--accent);font-size
 
 /* ---------- list tab ---------- */
 .search-wrap{position:relative;margin-bottom:12px}
-.search-wrap input{padding-left:38px;background:#fff}
+.search-wrap input{padding-left:38px}
 .search-wrap .ico{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-sub);font-size:15px}
 .toolbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
 .count-line{font-size:12.5px;color:var(--text-sub);margin-bottom:8px}
@@ -268,6 +422,7 @@ label.fld.filled span::after{content:" ✓ 読取";color:var(--accent);font-size
 .m-detail{margin-top:10px;border-top:1px dashed var(--border);padding-top:10px;font-size:13.5px}
 .m-detail div{margin-bottom:3px}
 .m-detail b{color:var(--text-sub);font-weight:600;font-size:12px;margin-right:6px}
+.m-detail a{color:var(--primary)}
 .m-actions{display:flex;gap:8px;margin-top:10px}
 .empty-state{text-align:center;padding:46px 10px;color:var(--text-sub)}
 .empty-state .big{font-size:44px;margin-bottom:10px}
@@ -277,31 +432,31 @@ label.fld.filled span::after{content:" ✓ 読取";color:var(--accent);font-size
 .scan-btns .btn{padding:16px 8px;flex-direction:column;gap:4px;font-size:14px}
 .scan-btns .big-ico{font-size:26px}
 #previewWrap{margin-top:12px;text-align:center}
-#previewImg{max-width:100%;max-height:280px;border-radius:10px;box-shadow:var(--shadow)}
 .progress-wrap{margin-top:12px}
 .progress-bar{height:10px;background:var(--border);border-radius:999px;overflow:hidden}
 .progress-bar>div{height:100%;width:0%;background:linear-gradient(90deg,var(--primary),var(--accent));transition:width .2s;border-radius:999px}
 .progress-text{font-size:12.5px;color:var(--text-sub);margin-top:5px;text-align:center}
 details.raw{margin-top:12px;font-size:12.5px}
 details.raw pre{
-  white-space:pre-wrap;background:#f1f3f9;border-radius:8px;padding:10px;
-  margin-top:6px;font-size:12px;max-height:180px;overflow:auto;
+  white-space:pre-wrap;background:var(--pre-bg);border-radius:var(--radius-xs);padding:10px;
+  margin-top:6px;font-size:12px;max-height:180px;overflow:auto;color:var(--text);
 }
 .form-actions{display:flex;gap:10px;margin-top:6px}
 .form-actions .btn{flex:1}
 
 /* ---------- settings tab ---------- */
 textarea#fbConfig{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;min-height:130px}
-.status-line{font-size:13px;margin-top:10px;padding:9px 12px;border-radius:9px;background:var(--primary-light)}
-.status-line.ok{background:#e6fcf5;color:#087f5b}
-.status-line.err{background:#fff0f0;color:var(--danger)}
+.status-line{font-size:13px;margin-top:10px;padding:9px 12px;border-radius:var(--radius-xs);background:var(--primary-light);color:var(--primary-dark)}
+.status-line.ok{background:var(--ok-bg);color:var(--ok-text)}
+.status-line.err{background:var(--danger-bg);color:var(--danger)}
 ol.steps{padding-left:20px;font-size:13.5px}
 ol.steps li{margin-bottom:9px}
-ol.steps code{background:#f1f3f9;padding:1px 6px;border-radius:5px;font-size:12px}
-.note-box{background:#fff9db;border:1px solid #ffe066;border-radius:10px;padding:10px 12px;font-size:12.5px;margin-top:10px;color:#5c4d00}
-.safe-box{background:#e6fcf5;border:1px solid #63e6be;border-radius:10px;padding:10px 12px;font-size:12.5px;margin-top:10px;color:#087f5b}
+ol.steps code{background:var(--pre-bg);padding:1px 6px;border-radius:5px;font-size:12px}
+ol.steps a{color:var(--primary)}
+.note-box{background:var(--warn-bg);border:1px solid var(--warn-border);border-radius:var(--radius-sm);padding:10px 12px;font-size:12.5px;margin-top:10px;color:var(--warn-text)}
+.safe-box{background:var(--ok-bg);border:1px solid var(--ok-border);border-radius:var(--radius-sm);padding:10px 12px;font-size:12.5px;margin-top:10px;color:var(--ok-text)}
 pre.code-block{
-  background:#232a3d;color:#d8e2ff;border-radius:10px;padding:12px;
+  background:var(--code-bg);color:var(--code-text);border-radius:var(--radius-sm);padding:12px;
   font-size:11.5px;line-height:1.5;overflow-x:auto;margin:8px 0;
   font-family:ui-monospace,Menlo,Consolas,monospace;white-space:pre;
 }
@@ -309,8 +464,8 @@ pre.code-block{
 /* toast */
 #toast{
   position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
-  background:#232a3d;color:#fff;padding:11px 20px;border-radius:999px;font-size:13.5px;
-  opacity:0;pointer-events:none;transition:.25s;z-index:99;box-shadow:0 4px 16px rgba(0,0,0,.25);
+  background:var(--toast-bg);color:var(--toast-text);padding:11px 20px;border-radius:999px;font-size:13.5px;
+  opacity:0;pointer-events:none;transition:.25s;z-index:99;box-shadow:var(--shadow-lg);
   max-width:90vw;text-align:center;
 }
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -472,6 +627,12 @@ pre.code-block{
     <!-- ============ 設定・同期 ============ -->
     <section class="tab" id="tab-settings">
       <div class="card-box">
+        <h2 class="sec">🎨 デザイン</h2>
+        <p class="muted" style="margin-bottom:10px">好きな見た目に切り替えられます。選ぶとすぐ反映され、次回起動時も保たれます。</p>
+        <div class="theme-grid" id="themeGrid"></div>
+      </div>
+
+      <div class="card-box">
         <h2 class="sec">🤖 AI読み取り(Google Gemini・無料)</h2>
         <p class="muted" style="margin-bottom:8px">AIが名刺画像を直接見て、全項目を高精度に抽出し、業種タグとメモも自動で付けます。無料枠で使えます。<b>この端末で1回だけ</b>APIキーを登録すれば、以降はずっと保存されます。</p>
         <div class="saved-row hidden" id="aiSummary">
@@ -486,7 +647,7 @@ pre.code-block{
           </div>
         </div>
         <label class="fld"><span>モデル(通常は変更不要)</span>
-          <select id="aiModel" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:15px;font-family:inherit;background:#fff;color:var(--text)">
+          <select id="aiModel" style="width:100%;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:15px;font-family:inherit;background:var(--input-bg);color:var(--text)">
             <option value="gemini-flash-latest">最新のFlash(自動・推奨)</option>
             <option value="gemini-3.5-flash">gemini-3.5-flash</option>
             <option value="gemini-2.5-flash">gemini-2.5-flash</option>
@@ -606,6 +767,10 @@ service cloud.firestore {
 <div id="imgViewer">
   <div class="vtitle" id="viewerTitle"></div>
   <img id="viewerImg" alt="名刺画像">
+  <div class="vtools">
+    <button type="button" id="viewerRotL">↺ 左に回す</button>
+    <button type="button" id="viewerRotR">↻ 右に回す</button>
+  </div>
   <button type="button" class="vclose" id="viewerClose">閉じる</button>
 </div>
 <div id="toast"></div>
@@ -651,6 +816,51 @@ const LS_AICLEARED = "meishi_ai_cleared_v1";
 const LS_FBCLEARED = "meishi_fb_cleared_v1";
 const LS_NOTHINKCFG = "meishi_ai_nothinkcfg_v1";   // thinking設定が使えないAPIだった場合の記録
 const LS_VIEW = "meishi_view_v1";                  // 検索モード・並び順の記憶
+const LS_THEME = "meishi_theme_v1";                // 見た目の設定
+
+/* =====================================================
+   テーマ(見た目)
+===================================================== */
+const THEMES = [
+  { id:"default", name:"標準",     desc:"見やすさ重視の青。迷ったらこれ。",
+    bar:"linear-gradient(135deg,#3b5bdb,#5f3dc4)", bg:"#f4f6fb", dot:"#3b5bdb", line:"#dfe5f5", meta:"#3b5bdb" },
+  { id:"cool",    name:"クール",   desc:"暗い背景のかっこいい配色。夜でも目が疲れにくい。",
+    bar:"linear-gradient(135deg,#0b1a33,#132b4d 55%,#0d3a4a)", bg:"#0f1320", dot:"#4dabf7", line:"#2a3145", meta:"#0f1320" },
+  { id:"cute",    name:"かわいい", desc:"パステルの桃色と丸い形。やわらかい雰囲気。",
+    bar:"linear-gradient(135deg,#ffa8c5,#f783ac 45%,#b197fc)", bg:"#fff5f8", dot:"#f06595", line:"#ffdce8", meta:"#f783ac" },
+  { id:"wa",      name:"和モダン", desc:"藍色と明朝体。名刺らしい落ち着いた佇まい。",
+    bar:"linear-gradient(135deg,#16293f,#1f3a5f 60%,#2c4a6b)", bg:"#f6f3ec", dot:"#9a7b28", line:"#ddd6c6", meta:"#1f3a5f" }
+];
+function currentTheme(){
+  const t = store.get(LS_THEME);
+  return THEMES.some(x=>x.id===t) ? t : "default";
+}
+function applyTheme(id, save){
+  const t = THEMES.find(x=>x.id===id) ? id : "default";
+  document.documentElement.setAttribute("data-theme", t);
+  const meta = document.getElementById("metaThemeColor");
+  const def = THEMES.find(x=>x.id===t);
+  if(meta && def) meta.setAttribute("content", def.meta);
+  if(save) store.set(LS_THEME, t);
+  renderThemeGrid();
+}
+function renderThemeGrid(){
+  const grid = document.getElementById("themeGrid");
+  if(!grid) return;
+  const cur = currentTheme();
+  grid.innerHTML = THEMES.map(t=>`
+    <button type="button" class="theme-card${t.id===cur?" on":""}" data-theme-id="${t.id}">
+      <span class="tc-prev" style="background:${t.bg}">
+        <span class="tc-bar" style="background:${t.bar}"></span>
+        <span class="tc-body">
+          <span class="tc-dot" style="background:${t.dot}"></span>
+          <span class="tc-line" style="background:${t.line}"></span>
+        </span>
+      </span>
+      <span class="tc-name">${esc(t.name)}${t.id===cur?" ✓":""}</span>
+      <span class="tc-desc">${esc(t.desc)}</span>
+    </button>`).join("");
+}
 
 /* =====================================================
    名刺画像の保管(IndexedDB)
@@ -984,7 +1194,15 @@ ${Object.entries(AI_FIELD_DESC).map(([k,v])=>`- ${k}: ${v}`).join("\n")}
 - sourceImage: その名刺が最もはっきり写っている画像の番号(1枚目なら1、2枚目なら2)。必ず数値で答えること。
 - box: sourceImageで指定した画像の中で、その名刺が占める長方形の範囲。[上, 左, 下, 右] の順に、画像の高さ・幅を0〜1000に正規化した整数4つで答えること。名刺の四辺のふちを含む最小の長方形にすること。画像全体に1枚だけ写っている場合は [0, 0, 1000, 1000] としてよい。
 - rotate: その名刺の文字が正しく読める向きにするために、切り抜いた画像を時計回りに何度回せばよいか。0・90・180・270 のいずれかの整数。すでに正しい向きなら0。名刺が横倒し・上下逆に写っている場合に指定する。
-- corners: その名刺の四隅の座標を [左上y, 左上x, 右上y, 右上x, 右下y, 右下x, 左下y, 左下x] の順に、画像の高さ・幅を0〜1000に正規化した整数8つで答えること。ここでいう「左上」などは<b>名刺を正しい向きに直したときの</b>角を指す(例: 名刺が右に90度倒れて写っているなら、画像上では左下に見える角が「左上」になる)。傾きの補正に使うので、できるだけ正確に答えること。四隅が判断できない場合は空の配列でよい。
+- corners: その名刺の四隅の座標を [左上y, 左上x, 右上y, 右上x, 右下y, 右下x, 左下y, 左下x] の順に、画像の高さ・幅を0〜1000に正規化した整数8つで答えること。ここでいう「左上」などは、名刺を本来の正しい向きに直したときの角を指す(例: 横型の名刺が右に90度倒れて写っているなら、画像上では左下に見える角が「左上」になる)。傾きの補正に使うので、できるだけ正確に答えること。四隅が判断できない場合は空の配列でよい。
+
+【向きについての重要な注意】
+日本の名刺には次の2種類があり、どちらも「正しい向き」が異なる。
+  ・横型: 文字が横書きで、用紙は横長。正しい向きは横長。
+  ・縦型: 文字が縦書き(上から下へ読む)で、用紙は縦長。正しい向きは縦長。
+縦型の名刺を横長に倒してはいけない。文字の並ぶ方向やロゴ・氏名の配置から、その名刺が本来どちらの型なのかを判断し、
+その本来の形のまま正立させる向きを rotate と corners で示すこと。
+「名刺は横長であるべき」と決めつけないこと。
 
 重要なルール:
 - 同じ名刺が複数の画像やコマに写っている場合は、1件にまとめること(重複させない)。最も鮮明に写っているものを採用する。
@@ -2588,6 +2806,7 @@ $("#sortSel").addEventListener("change", ()=>{
 function openViewer(id){
   const c = cards.find(x=>x.id===id);
   if(!c || !c.image) return;
+  viewerId = id;
   $("#viewerImg").src = c.image;
   $("#viewerTitle").textContent = [c.name, c.company].filter(Boolean).join(" / ");
   $("#imgViewer").classList.add("show");
@@ -2596,6 +2815,53 @@ function closeViewer(){
   $("#imgViewer").classList.remove("show");
   $("#viewerImg").src = "";
 }
+/* ---------- 画像を手で回す(AIの向き判定が外れた時の直し) ---------- */
+let viewerId = null;
+function rotateDataUrl(dataUrl, deg){
+  return new Promise(resolve=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const swap = (deg === 90 || deg === 270);
+      const cv = document.createElement("canvas");
+      cv.width = swap ? img.height : img.width;
+      cv.height = swap ? img.width : img.height;
+      const ctx = cv.getContext("2d");
+      ctx.imageSmoothingQuality = "high";
+      ctx.translate(cv.width/2, cv.height/2);
+      ctx.rotate(deg * Math.PI / 180);
+      ctx.drawImage(img, -img.width/2, -img.height/2);
+      try{ resolve(cv.toDataURL("image/jpeg", 0.72)); }catch(e){ resolve(""); }
+    };
+    img.onerror = ()=>resolve("");
+    img.src = dataUrl;
+  });
+}
+async function rotateCardImage(deg){
+  const c = cards.find(x=>x.id===viewerId);
+  if(!c || !c.image) return;
+  const out = await rotateDataUrl(c.image, deg);
+  if(!out){ toast("回転できませんでした"); return; }
+  c.image = out;
+  c.updatedAt = nowStr();
+  $("#viewerImg").src = out;
+  await idbSet(c.id, out);
+  persistLocal();
+  renderList();
+  if(fb.connected && fb.user){
+    try{ await userCol().doc(c.id).set(c); }catch(e){ console.error(e); }
+  }
+}
+$("#themeGrid").addEventListener("click", e=>{
+  const btn = e.target.closest("[data-theme-id]");
+  if(!btn) return;
+  applyTheme(btn.dataset.themeId, true);
+  const t = THEMES.find(x=>x.id===btn.dataset.themeId);
+  toast(`見た目を「${t ? t.name : ""}」に変えました 🎨`);
+});
+
+$("#viewerRotL").addEventListener("click", ()=>rotateCardImage(270));
+$("#viewerRotR").addEventListener("click", ()=>rotateCardImage(90));
+
 $("#viewerClose").addEventListener("click", closeViewer);
 $("#imgViewer").addEventListener("click", e=>{ if(e.target.id === "imgViewer") closeViewer(); });
 document.addEventListener("keydown", e=>{ if(e.key === "Escape") closeViewer(); });
@@ -2940,6 +3206,7 @@ if("serviceWorker" in navigator && location.protocol === "https:"){
 }
 
 (function init(){
+  applyTheme(currentTheme(), false);    // 保存された見た目を先に反映する
   // ローカルデータ読み込み
   try{
     const saved = store.get(LS_CARDS);
