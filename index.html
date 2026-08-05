@@ -640,7 +640,7 @@ pre.code-block{
           <button type="button" class="btn btn-ghost btn-sm" id="aiChangeBtn">変更</button>
         </div>
         <div id="aiEditWrap">
-          <label class="fld"><span>Gemini APIキー</span><input type="password" id="aiKey" autocomplete="off" placeholder="AIza... で始まるキー"></label>
+          <label class="fld"><span>Gemini APIキー</span><input type="password" id="aiKey" autocomplete="off" placeholder="AI Studioで取得したキーを貼り付け"></label>
           <div class="form-actions">
             <button type="button" class="btn btn-ghost hidden" id="aiCancelEditBtn">やめる</button>
             <button class="btn btn-ai" id="aiSaveBtn">🤖 保存して接続テスト</button>
@@ -665,16 +665,12 @@ pre.code-block{
         <ol class="steps">
           <li><a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a> をGoogleアカウントで開きます。</li>
           <li>「<b>Create API key</b>(APIキーを作成)」を押します。プロジェクトを選ぶ画面が出たら、そのまま新規作成でOK。</li>
-          <li>表示された <b><code>AIza…</code> で始まる文字列</b>をコピーして、上の欄に貼り付け →「保存して接続テスト」。</li>
+          <li>表示された文字列をそのままコピーして、上の欄に貼り付け →「保存して接続テスト」。</li>
           <li>成功したら、読み取り画面に「🤖 AIで読み取る」ボタンが使えるようになります。</li>
         </ol>
-        <div class="note-box">⚠️ <b>「AQ.」で始まるキーが出てきた場合</b><br>
-          一部のアカウントでは <code>AQ.…</code> という形式のキーが発行されますが、これはGoogle側の不具合でこのAPIから拒否され、<b>401エラー</b>になります。その場合は下の手順で作り直してください。</div>
-        <ol class="steps" style="margin-top:10px">
-          <li><a href="https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com" target="_blank">Google Cloud コンソール</a>を開き、上部でプロジェクトを選択(無ければ新規作成)して「<b>有効にする</b>」を押し、Generative Language API を有効化。</li>
-          <li>左メニュー「<b>APIとサービス</b>」→「<b>認証情報</b>」→ 上部の「<b>+ 認証情報を作成</b>」→「<b>APIキー</b>」。</li>
-          <li>ここで作られるキーは <code>AIza…</code> 形式です。コピーして上の欄に貼り付け、「保存して接続テスト」。</li>
-        </ol>
+        <div class="safe-box">💡 <b>キーの形について</b>: 以前は <code>AIza…</code> で始まるキーでしたが、現在は <code>AQ.…</code> で始まる「認証キー」が発行されます。これはGoogleが新しい方式へ移行しているためで、<b>異常ではありません</b>。このアプリはどちらの形式でもそのまま使えます。</div>
+        <div class="note-box">⚠️ <b>401エラーが出る場合</b><br>
+          作成直後は有効になるまで数分かかることがあります。少し待っても駄目なら、AI Studioのキー一覧でそのキーが「<b>Unrestricted</b>(制限なし)」になっていないか確認してください。制限なしの古い形式のキーは、Gemini API 側で受け付けられなくなっています。「Add restrictions」から「<b>Restrict to Gemini API only</b>」を適用するか、キーを新しく作り直すと解決します。</div>
         <div class="safe-box">💡 <b>費用について</b>: 無料枠の範囲内なら課金されません。クレジットカードの登録も不要です。名刺の読み取りは1枚あたりごくわずかな消費なので、個人利用なら無料枠で十分足ります。</div>
         <div class="note-box">🔐 APIキーはこの端末のブラウザ内にのみ保存され、外部には送信されません(Google以外には送られません)。他の人と共有する端末では使わないでください。</div>
       </div>
@@ -1319,11 +1315,13 @@ function pickGeminiText(json){
   return "";
 }
 
-/* 「AIza」で始まらないキーはAPIキーとして拒否されることがある(Google側の既知の問題) */
-function isStdApiKey(k){ return /^AIza[\w\-]{20,}$/.test(String(k||"").trim()); }
-const AUTH_HELP_MSG = "APIキーが認証されませんでした(401)。"
-  + "「AQ.」で始まるキーは、Google側の不具合でこのAPIから拒否されることが知られています。"
-  + "設定画面の手順にしたがって「AIza…」で始まるキーを作り直してください。";
+/* APIキーの形式は問わない。
+   Googleは「AIza…」の標準キーから「AQ.…」の認証キーへ移行中で、
+   AI Studioで新しく作るキーは認証キーになる。どちらもそのまま使える。 */
+const AUTH_HELP_MSG = "APIキーが認証されませんでした(401)。次のどれかが原因です。"
+  + "①キーがまだ有効になっていない(作成直後は数分かかることがあります) "
+  + "②そのキーで Gemini API が有効になっていない "
+  + "③制限のない古い形式のキーを使っている(AI Studioでキーに「Gemini API」の制限を付けるか、新しくキーを作り直してください)。";
 
 async function callGemini(images, prompt, onProgress, schema, authMode){
   const key = getAiKey();
@@ -1357,7 +1355,8 @@ async function callGemini(images, prompt, onProgress, schema, authMode){
       if(res.status === 400 && /API key not valid|API_KEY_INVALID/i.test(msg)) throw new Error("APIキーが正しくありません。設定画面で確認してください。");
       // 認証されない: 一度だけ別の渡し方(Bearer)で試し、それでも駄目なら案内を出す
       if(res.status === 401){
-        if(authMode !== "bearer" && !isStdApiKey(key)){
+        // キーの形は問わず、渡し方を変えて一度だけやり直す
+        if(authMode !== "bearer"){
           return callGemini(images, prompt, onProgress, schema, "bearer");
         }
         throw new Error(AUTH_HELP_MSG);
@@ -1987,11 +1986,7 @@ async function saveAiKey(){
   store.set(LS_AIKEY, k);
   store.set(LS_AIMODEL, model);
   store.del(LS_AICLEARED);
-  if(!isStdApiKey(k)){
-    setAiStatus("err","⚠️ このキーは「AIza…」の形式ではありません。"
-      + (/^AQ\./.test(k) ? "「AQ.」で始まるキーはGoogle側の不具合で拒否されることが知られています。" : "")
-      + "下の手順で作り直すと確実です。まず接続テストを行います...");
-  }
+  setAiStatus("", "接続テスト中...");
   setAiStatus("", "接続テスト中...");
   // 1x1の白画像で疎通確認(消費はごくわずか)
   const cv = document.createElement("canvas");
